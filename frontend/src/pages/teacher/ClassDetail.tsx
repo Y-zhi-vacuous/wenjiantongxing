@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, UserPlus, FileText, Target, Download, Upload, FileSpreadsheet } from 'lucide-react'
 import api from '../../api/client'
+import { API_BASE_URL } from '../../config'
 
 const cardClass = "bg-white/80 backdrop-blur-xl rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)]"
 
@@ -50,7 +51,7 @@ export default function ClassDetail() {
   const downloadTemplate = () => {
     const token = localStorage.getItem('token')
     const a = document.createElement('a')
-    a.href = `/api/classes/${id}/students/template?token=${token}`
+    a.href = `${API_BASE_URL}/classes/${id}/students/template?token=${token}`
     a.click()
   }
 
@@ -75,7 +76,7 @@ export default function ClassDetail() {
   const handleExport = () => {
     const token = localStorage.getItem('token')
     const a = document.createElement('a')
-    a.href = `/api/classes/${id}/students/export?token=${token}`
+    a.href = `${API_BASE_URL}/classes/${id}/students/export?token=${token}`
     a.click()
   }
 
