@@ -62,20 +62,31 @@ async def grade_essay(essay_id: int):
 
             report_data = await run_grader(content, topic_info=topic_info, user_id=essay.student_id)
 
-            # 分数上限保护：各项不能超过满分
+            # 分数上限保护
             def clamp(v, mx):
                 return max(0, min(float(v or 0), float(mx)))
 
-            total = clamp(report_data.get("total_score", 0), 45)
             thesis = clamp(report_data.get("score_thesis", 0), 10)
             content_s = clamp(report_data.get("score_content", 0), 15)
             lang = clamp(report_data.get("score_language", 0), 10)
             struct = clamp(report_data.get("score_structure", 0), 5)
             pen = clamp(report_data.get("score_penmanship", 0), 5)
 
-            # 如果四项之和与总分不一致，以四项之和为准
-            if abs(total - (thesis + content_s + lang + struct + pen)) > 2:
-                total = thesis + content_s + lang + struct + pen
+            # 切题判定直接影响总分
+            topic_match = report_data.get("topic_match", "")
+            if topic_match == "完全离题":
+                thesis = min(thesis, 2)
+                total = min(thesis + content_s + lang + struct + pen, 10)
+            elif topic_match == "部分偏题":
+                thesis = min(thesis, 5)
+                total = min(thesis + content_s + lang + struct + pen, 29)
+            else:
+                total = clamp(report_data.get("total_score", 0), 45)
+
+            # 五项和校验
+            real_sum = thesis + content_s + lang + struct + pen
+            if abs(total - real_sum) > 2:
+                total = real_sum
 
             report = EssayReport(
                 essay_id=essay.id,
