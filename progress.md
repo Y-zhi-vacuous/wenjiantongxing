@@ -2,38 +2,39 @@
 
 ## 2026-04-30 ~ 2026-05-01
 
-### 设计阶段 ✅
-- 8 轮需求澄清 → FastAPI + React 架构选型 → Apple Native 设计
+### 设计 ✅
+- 需求澄清 → FastAPI+React → Apple UI
 
-### 后端开发 ✅
-- 8 数据模型 + JWT 认证 + 作文 CRUD + 文件解析
-- AI 批改 Agent (GLM-4) + 能力分析服务
-- xlsx 批量导入/导出 + 学生密码修改
+### 后端 ✅
+- 8 模型 + JWT + 作文 CRUD + 文件解析
+- AI 批改 (GLM-4) + OCR (GLM-4V) + 能力分析
+- xlsx 导入导出 + 密码修改
 
-### 前端开发 ✅
-- 学生端 8 页 + 教师端 7 页 (含学生能力详情)
-- Apple 风格 UI (毛玻璃/半透明/阴影)
-- 在线写作 + 文件上传 + 拍照 OCR
-- 作文原文 + OCR 结果展示
-- 批改进度实时轮询
+### 前端 ✅
+- 学生端 8 页 + 教师端 7 页
+- Apple 风格 UI + 作文原文展示
+
+### AI 优化 ✅
+- 五维度评分 (立意+内容+语言+结构+文面)
+- 切题硬限制 (离题≤10, 偏题≤29)
+- OCR 限流重试 + 模型降级
+- 模型可配置 (OCR/评分独立)
 
 ### 部署 ✅
-- GitHub Actions 自动构建 Docker 镜像
-- Sealos 公网部署 `https://wppyqjhwlqso.usw-1.sealos.app`
-- SSH 方式解决 Git push 不稳定
+- GitHub Actions → GHCR → Sealos
+- SSH Git push 永久修复
+- APK v1.0 构建成功
 
-## 测试结果
+## 测试
 | Test | Status |
 |------|--------|
-| Backend health | ✓ |
-| Student login | ✓ |
-| Teacher login + real name | ✓ |
-| Topics list (10 questions) | ✓ |
-| Essay create + GLM-4 grade + report | ✓ |
-| Image upload + GLM-4V OCR | ✓ |
-| Student ability analysis | ✓ |
-| Password change | ✓ |
-| xlsx template/import/export | ✓ |
-| Frontend build (0 errors) | ✓ |
-| Docker image build | ✓ |
-| Sealos public access | ✓ |
+| Health / Login | ✓ |
+| Topics (10) | ✓ |
+| Essay + GLM-4 grading | ✓ |
+| Image + GLM-4V OCR | ✓ |
+| Ability analysis | ✓ |
+| xlsx import/export | ✓ |
+| Frontend build | ✓ |
+| Docker build | ✓ |
+| APK build | ✓ |
+| Sealos public | ✓ |
