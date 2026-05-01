@@ -70,10 +70,11 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-4 gap-6">
             {[
+              { label: '立意', score: ability.abilities?.thesis, color: '#FF3B30' },
               { label: '内容', score: ability.abilities?.content, color: '#007AFF' },
               { label: '语言', score: ability.abilities?.language, color: '#34C759' },
               { label: '结构', score: ability.abilities?.structure, color: '#FF9500' },
-              { label: '卷面', score: ability.abilities?.penmanship, color: '#AF52DE' },
+              { label: '文面', score: ability.abilities?.penmanship, color: '#AF52DE' },
             ].map(({ label, score, color }) => (
               <div key={label} className="text-center">
                 <div className="text-2xl font-bold text-apple-text">{score}</div>

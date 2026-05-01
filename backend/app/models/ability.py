@@ -16,11 +16,12 @@ class StudentAbility(Base):
     overall_score: Mapped[float] = mapped_column(Float, default=0.0)       # 加权均分
     essay_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    # 四维能力值 (0-100)
-    content_ability: Mapped[float] = mapped_column(Float, default=0.0)     # 内容：审题/立意/素材
+    # 五维能力值 (0-100)
+    thesis_ability: Mapped[float] = mapped_column(Float, default=0.0)      # 立意：审题/主题深度
+    content_ability: Mapped[float] = mapped_column(Float, default=0.0)     # 内容：选材/细节/详略
     language_ability: Mapped[float] = mapped_column(Float, default=0.0)    # 语言：表达/修辞/文采
     structure_ability: Mapped[float] = mapped_column(Float, default=0.0)   # 结构：布局/过渡/呼应
-    penmanship_ability: Mapped[float] = mapped_column(Float, default=0.0)  # 卷面：分段/字数/规范
+    penmanship_ability: Mapped[float] = mapped_column(Float, default=0.0)  # 文面：卷面/标点/规范
 
     # 趋势数据 (JSON)
     score_history: Mapped[list | None] = mapped_column(JSON, nullable=True)

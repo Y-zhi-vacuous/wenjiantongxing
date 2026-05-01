@@ -18,10 +18,11 @@ interface AbilityData {
 }
 
 const dimLabels: Record<string, { label: string; color: string }> = {
+  thesis: { label: '立意能力', color: '#FF3B30' },
   content: { label: '内容能力', color: '#007AFF' },
   language: { label: '语言能力', color: '#34C759' },
   structure: { label: '结构能力', color: '#FF9500' },
-  penmanship: { label: '卷面能力', color: '#AF52DE' },
+  penmanship: { label: '文面能力', color: '#AF52DE' },
 }
 
 export default function Ability() {
