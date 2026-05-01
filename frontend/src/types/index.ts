@@ -53,10 +53,14 @@ export interface EssayReport {
   id: number
   essay_id: number
   total_score: number
+  score_thesis: number
   score_content: number
   score_language: number
   score_structure: number
   score_penmanship: number
+  level?: string
+  deduction_reason?: string
+  word_count_actual?: number
   basic_errors: BasicErrors
   paragraph_reviews: ParagraphReview[]
   overall_comment: string

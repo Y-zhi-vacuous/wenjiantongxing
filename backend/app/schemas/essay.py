@@ -39,10 +39,14 @@ class ReportResponse(BaseModel):
     id: int
     essay_id: int
     total_score: float
+    score_thesis: float
     score_content: float
     score_language: float
     score_structure: float
     score_penmanship: float
+    level: str | None = None
+    deduction_reason: str | None = None
+    word_count_actual: int | None = None
     basic_errors: dict | None = None
     paragraph_reviews: list | None = None
     overall_comment: str | None = None

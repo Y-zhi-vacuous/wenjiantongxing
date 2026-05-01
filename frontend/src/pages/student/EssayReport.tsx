@@ -114,15 +114,16 @@ export default function EssayReportPage() {
         <div className="text-xs font-semibold text-apple-secondary tracking-wide uppercase mb-2">总分</div>
         <div className="text-7xl font-bold text-apple-text tracking-tighter">{report.total_score}</div>
         <div className="text-sm text-apple-secondary mt-1">满分 45</div>
-        <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-apple-divider">
+        <div className="flex justify-center gap-6 mt-6 pt-6 border-t border-apple-divider">
           {[
-            { label: '内容 / 18', value: report.score_content },
-            { label: '语言 / 13', value: report.score_language },
-            { label: '结构 / 9', value: report.score_structure },
-            { label: '卷面 / 5', value: report.score_penmanship },
-          ].map(({ label, value }) => (
+            { label: '立意 / 10', value: report.score_thesis ?? 0, color: '#007AFF' },
+            { label: '内容 / 15', value: report.score_content, color: '#34C759' },
+            { label: '语言 / 10', value: report.score_language, color: '#FF9500' },
+            { label: '结构 / 5', value: report.score_structure, color: '#AF52DE' },
+            { label: '文面 / 5', value: report.score_penmanship, color: '#FF3B30' },
+          ].map(({ label, value, color }) => (
             <div key={label} className="text-center">
-              <div className="text-xl font-semibold text-apple-text">{value}</div>
+              <div className="text-xl font-semibold" style={{ color }}>{value}</div>
               <div className="text-2xs text-apple-secondary">{label}</div>
             </div>
           ))}
