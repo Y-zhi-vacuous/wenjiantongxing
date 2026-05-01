@@ -28,9 +28,6 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
 
@@ -45,18 +42,41 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Install Android SDK
+        run: |
+          ANDROID_HOME=$HOME/android-sdk
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          curl -sLo tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -qo tools.zip && rm tools.zip
+          # The zip extracts to cmdline-tools/ directory, move to latest/
+          mkdir -p latest
+          cp -r cmdline-tools/* latest/ 2>/dev/null || mv cmdline-tools latest/ 2>/dev/null || true
+          ls -la latest/bin/
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --licenses 2>/dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -3
+
       - name: Build web assets
         working-directory: frontend
         run: |
-          npm ci
+          npm install
           npm run build
           npx cap sync android
+
+      - name: Create local.properties
+        working-directory: frontend/android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "org.gradle.jvmargs=-Xmx2048m" >> gradle.properties
 
       - name: Build APK
         working-directory: frontend/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
