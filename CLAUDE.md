@@ -1,26 +1,24 @@
-# CLAUDE.md
+# CLAUDE.md — 文鉴同行
 
-## 项目：文鉴同行
-
-深圳中考 AI 作文批改平台。FastAPI + React + 智谱 GLM-4 驱动。
+深圳中考 AI 作文批改平台。FastAPI + React + 智谱 GLM-4 + Sealos 部署。
 
 ## 常用命令
 
 ```bash
 # 本地开发
-cd backend && uvicorn app.main:app --reload --port 8000  # 后端
-cd backend && python -m app.seed                          # 初始化数据
-cd frontend && npm run dev                                # 前端 (端口 5173，Vite 代理 /api → :8000)
+cd backend && uvicorn app.main:app --reload --port 8000
+cd backend && python -m app.seed                          # 初始化种子数据
+cd frontend && npm install && npm run dev                  # 开发服务器 :5173 (Vite proxy /api → :8000)
 
-# 构建 & 部署
-cd frontend && npm run build                              # 前端构建到 dist/
-git push                                                  # 推送（已配置 SSH）
-# GitHub Actions 自动构建 Docker → GHCR → Sealos 手动 Restart
+# 构建
+cd frontend && npm run build                              # Web 构建 → dist/
+cd frontend && npx cap sync android                       # 同步到 Android
+cd frontend/android && ./gradlew assembleDebug            # APK 构建 (需要 Java 21 + Android SDK 36)
 
-# APK 构建 (需要 Android Studio)
-# 1. Android Studio → Open → frontend/android
-# 2. Build → Build Bundle(s) / APK(s) → Build APK(s)
-# 3. APK 路径: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+# 部署 (全自动)
+git push                                                  # SSH: git@github.com:Y-zhi-vacuous/wenjiantongxing.git
+# → GitHub Actions 自动构建 Docker 镜像 → GHCR
+# → Sealos Restart 拉取新镜像
 ```
 
 ## 技术栈
@@ -28,43 +26,42 @@ git push                                                  # 推送（已配置 S
 | 层 | 技术 | 路径 |
 |----|------|------|
 | 前端 | React 18 + TS + Vite + Tailwind | `frontend/src/` |
-| 后端 | FastAPI + SQLAlchemy + SQLite | `backend/app/` |
-| AI | 智谱 GLM-4 + GLM-4V | `backend/app/agents/grader.py` |
-| OCR | GLM-4V 视觉模型 | `backend/app/services/parsing.py` |
-| 部署 | GitHub Actions → GHCR → Sealos | `Dockerfile`, `.github/workflows/deploy.yml` |
+| 移动端 | Capacitor 8 Android | `frontend/android/` |
+| 后端 | FastAPI + SQLAlchemy 2.0 | `backend/app/` |
+| 数据库 | SQLite (dev/prod) / PostgreSQL | `backend/app/db.py` |
+| AI 批改 | 智谱 GLM-4 | `backend/app/agents/grader.py` |
+| 图片 OCR | 智谱 GLM-4V | `backend/app/services/parsing.py` |
+| CI/CD | GitHub Actions → GHCR → Sealos | `.github/workflows/deploy.yml` |
 
-## 项目架构
+## 项目结构
 
 ```
 frontend/src/
-├── pages/student/     # 登录/Dashboard/写作/报告/历史/能力/设置
-├── pages/teacher/     # 工作台/班级管理/题库/作文查看/学生能力
-├── components/        # 导航栏
-├── api/client.ts      # Axios，baseURL 来自 src/config.ts
-└── config.ts          # API_BASE_URL 切换（Web/APK）
+├── pages/student/        # Dashboard / WriteEssay / EssayReport / History / Ability / Settings
+├── pages/teacher/        # Dashboard / ClassList / ClassDetail / Topics / EssayView / StudentAbility
+├── components/           # StudentNav / TeacherNav
+├── api/client.ts         # Axios (baseURL from config.ts)
+└── config.ts             # Web: /api  |  APK: https://wppyqjhwlqso.usw-1.sealos.app/api
 
 backend/app/
-├── models/            # 8 张表
-├── api/               # REST 路由 (auth/essays/topics/classes/ability/config/students)
-├── services/          # grading / parsing (OCR) / ability
-├── agents/            # grader (GLM-4) / router
-└── auth/              # JWT
+├── models/   (8 models)  # User / Essay / EssayTopic / EssayReport / AIConfig / Class / ClassStudent / StudentAbility
+├── api/      (7 routers) # auth / essays / topics / classes / ability / config / students
+├── services/             # grading (AI批改编排) / parsing (OCR) / ability (画像更新)
+├── agents/               # grader (GLM-4) / router
+└── auth/                 # JWT (Header + Query Param 双模式)
 ```
 
-## 关键注意
+## 关键决策
 
-- **Git push 必须用 SSH**：`git@github.com:Y-zhi-vacuous/wenjiantongxing.git`，HTTPS 在国内不稳定
-- **数据库路径**：生产用绝对路径 `sqlite+aiosqlite:////app/data/essay_app.db`，本地用相对路径
-- **bcrypt 版本**：锁定 `bcrypt==4.0.1`，新版与 passlib 不兼容
-- **前端 API**：Web 模式用相对 `/api`，APK 模式用绝对 URL（`src/config.ts`）
-- **AI Key**：`.env` 中配置，不在代码中硬编码
-- **CORS**：生产设 `*`，本地 `localhost:5173`
-
-## 公网地址
-
-- Web: `https://wppyqjhwlqso.usw-1.sealos.app`
-- API: `https://wppyqjhwlqso.usw-1.sealos.app/api/health`
-- GHCR: `ghcr.io/y-zhi-vacuous/wenjiantongxing:latest`
+| 决策 | 理由 |
+|------|------|
+| GLM-4V 做 OCR | 免装 Tesseract，手写体识别更准，Docker 镜像更小 |
+| SQLite 生产 | 零配置，Sealos 免费无 PostgreSQL |
+| SSH Git push | 国内 GFW 阻断 HTTPS git，SSH 永久稳定 |
+| bcrypt==4.0.1 | passlib 与新版 bcrypt 不兼容 |
+| APK 构建需 Java 21 | AGP 8.13 + compileSdk 36 |
+| android.overridePathCheck=true | 项目路径含中文 |
+| JWT Query Param | window.open() 无法携带 Authorization header |
 
 ## 测试账号
 
@@ -72,3 +69,9 @@ backend/app/
 |------|------|------|
 | 教师 | teacher1 | test123 |
 | 学生 | student1 | test123 |
+
+## 公网
+
+- Web: `https://wppyqjhwlqso.usw-1.sealos.app`
+- API: `https://wppyqjhwlqso.usw-1.sealos.app/api/health`
+- GHCR: `ghcr.io/y-zhi-vacuous/wenjiantongxing:latest`
