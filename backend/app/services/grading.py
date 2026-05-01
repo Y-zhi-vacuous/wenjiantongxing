@@ -17,7 +17,34 @@ async def grade_essay(essay_id: int):
             if not essay:
                 return
 
-            report_data = await run_grader(essay.content, user_id=essay.student_id)
+            # 内容质量校验：过短或 OCR 失败的作文不送 AI 批改
+            content = essay.content or ""
+            if "[手写作文" in content and "OCR" in content:
+                report = EssayReport(
+                    essay_id=essay.id, total_score=0, score_content=0,
+                    score_language=0, score_structure=0, score_penmanship=0,
+                    overall_comment="OCR 识别失败，无法批改。请确认图片清晰度后重新上传。",
+                    suggestions=["请重新拍摄或上传更清晰的手写作文图片"],
+                    model_used="system", processing_time_ms=0,
+                )
+                db.add(report)
+                essay.status = EssayStatus.graded
+                await db.commit()
+                return
+            if len(content) < 100:
+                report = EssayReport(
+                    essay_id=essay.id, total_score=5, score_content=2,
+                    score_language=1, score_structure=1, score_penmanship=1,
+                    overall_comment="文章字数严重不足，无法进行有效批改。中考作文要求不少于600字，建议重新提交完整作文。",
+                    suggestions=["中考作文要求不少于600字，请补充完整内容后重新提交"],
+                    model_used="system", processing_time_ms=0,
+                )
+                db.add(report)
+                essay.status = EssayStatus.graded
+                await db.commit()
+                return
+
+            report_data = await run_grader(content, user_id=essay.student_id)
 
             report = EssayReport(
                 essay_id=essay.id,
