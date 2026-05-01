@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wenjiantongxing
+  labels:
+    app: wenjiantongxing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wenjiantongxing
+  template:
+    metadata:
+      labels:
+        app: wenjiantongxing
+    spec:
+      containers:
+        - name: app
+          image: python:3.12-slim
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: "sqlite+aiosqlite:///./essay_app.db"
+            - name: SECRET_KEY
+              value: "wenjiantongxing-prod-2026"
+            - name: AI_PROVIDER
+              value: "zhipu"
+            - name: AI_MODEL
+              value: "glm-4-flash"
+            - name: AI_API_KEY
+              value: "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+            - name: CORS_ORIGINS
+              value: "*"
+            - name: FRONTEND_DIR
+              value: "./frontend/dist"
+            - name: PORT
+              value: "8080"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update && apt-get install -y --no-install-recommends libpq-dev gcc curl && rm -rf /var/lib/apt/lists/*
+              curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+              apt-get install -y nodejs
+              cd /app
+              pip install -r backend/requirements.txt
+              cd frontend && npm install && npm run build && cd ..
+              cd backend && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080 --proxy-headers
+          resources:
+            requests:
+              cpu: "0.5"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wenjiantongxing
+spec:
+  selector:
+    app: wenjiantongxing
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wenjiantongxing
+spec:
+  rules:
+    - host: wenjiantongxing.sealos.run
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wenjiantongxing
+                port:
+                  number: 80
