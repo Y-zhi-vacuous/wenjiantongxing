@@ -76,39 +76,66 @@ async def _parse_image_async(content_bytes: bytes) -> str:
     img_b64 = base64.b64encode(content_bytes).decode()
     print(f"[OCR] 模型={ocr_model} 图片base64={len(img_b64)}字节")
 
+    import asyncio as aio
     import httpx
-    async with httpx.AsyncClient(timeout=90) as client:
-        resp = await client.post(
-            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-            json={
-                "model": ocr_model,
-                "messages": [{
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "请识别这张手写作文图片中的所有文字，逐字逐句输出，保留原文段落格式，不要添加任何解释或修改。"},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-                    ]
-                }],
-                "temperature": 0.1,
-                "max_tokens": 4096,
-                "thinking": {"type": "disabled"},
-            },
-            headers={"Authorization": f"Bearer {api_key}"},
-        )
-        data = resp.json()
-        if "choices" in data:
-            msg = data["choices"][0]["message"]
-            # thinking 模型：优先取 reasoning_content 后面的 content，或直接 content
-            text = (msg.get("content") or "").strip()
-            # 如果 content 为空，尝试从 reasoning_content 提取
-            if not text and msg.get("reasoning_content"):
-                text = msg["reasoning_content"].strip()
-            print(f"[OCR] 成功，{len(text)} 字 模型={data.get('model','?')}")
-            if len(text) < 20:
-                print(f"[OCR] ⚠️ 内容过短: {text}")
-            return text
-        print(f"[OCR] API错误: {data}")
-        return f"[OCR失败: {data.get('error',{}).get('message','未知错误')}]"
+
+    models_to_try = [ocr_model, "glm-4v"]
+    tried = set()
+    last_error = ""
+
+    for model in models_to_try:
+        if model in tried:
+            continue
+        tried.add(model)
+
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=90) as client:
+                    payload = {
+                        "model": model,
+                        "messages": [{"role": "user", "content": [
+                            {"type": "text", "text": "请识别这张手写作文图片中的所有文字，逐字逐句输出，保留原文段落格式，不要添加任何解释或修改。"},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                        ]}],
+                        "temperature": 0.1,
+                        "max_tokens": 4096,
+                    }
+                    if "thinking" in model:
+                        payload["thinking"] = {"type": "disabled"}
+
+                    resp = await client.post(
+                        "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+                        json=payload,
+                        headers={"Authorization": f"Bearer {api_key}"},
+                    )
+                    data = resp.json()
+
+                    if "choices" in data:
+                        msg = data["choices"][0]["message"]
+                        text = (msg.get("content") or "").strip()
+                        if not text:
+                            text = msg.get("reasoning_content", "").strip()
+                        if len(text) > 20:
+                            print(f"[OCR] 成功 模型={model} {len(text)}字")
+                            return text
+                        print(f"[OCR] {model} 输出过短({len(text)}字)，重试...")
+
+                    elif "error" in data:
+                        err_msg = data["error"].get("message", "")
+                        last_error = err_msg
+                        if "访问量过大" in err_msg or "rate" in err_msg.lower() or "限流" in err_msg:
+                            wait = (attempt + 1) * 4
+                            print(f"[OCR] {model} 限流，{wait}s后重试(第{attempt+1}次)...")
+                            await aio.sleep(wait)
+                            continue
+                        else:
+                            print(f"[OCR] {model} 错误: {err_msg}，换模型")
+                            break
+            except Exception as e:
+                print(f"[OCR] {model} 异常: {e}")
+                await aio.sleep(2)
+
+    return f"[OCR失败: {last_error or '所有模型均无法识别，请稍后重试'}]"
 
 
 def _parse_image_sync(content_bytes: bytes) -> str:
