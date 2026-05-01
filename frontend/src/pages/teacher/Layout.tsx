@@ -5,6 +5,7 @@ import ClassList from './ClassList'
 import ClassDetail from './ClassDetail'
 import Topics from './Topics'
 import EssayView from './EssayView'
+import StudentAbility from './StudentAbility'
 import TeacherSettings from './Settings'
 
 export default function TeacherLayout() {
@@ -18,6 +19,7 @@ export default function TeacherLayout() {
           <Route path="classes/:id" element={<ClassDetail />} />
           <Route path="topics" element={<Topics />} />
           <Route path="essay/:id" element={<EssayView />} />
+          <Route path="student/:studentId/ability" element={<StudentAbility />} />
           <Route path="settings" element={<TeacherSettings />} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Routes>

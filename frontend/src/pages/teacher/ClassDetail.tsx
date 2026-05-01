@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, UserPlus, FileText, Target, Download, Upload, FileSpreadsheet } from 'lucide-react'
+import { ArrowLeft, UserPlus, FileText, Target, Download, Upload, FileSpreadsheet, ChevronRight } from 'lucide-react'
 import api from '../../api/client'
 import { API_BASE_URL } from '../../config'
 
@@ -169,11 +169,13 @@ export default function ClassDetail() {
                 </div>
                 <div className="flex items-center gap-3">
                   {s.ability?.essay_count > 0 ? (
-                    <div className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-1.5">
+                    <Link to={`/teacher/student/${s.id}/ability`}
+                          className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-1.5 hover:bg-blue-100 transition-all">
                       <Target className="w-3.5 h-3.5 text-apple-accent" />
                       <span className="text-sm font-semibold text-apple-accent">{s.ability.overall_score}</span>
-                      <span className="text-xs text-apple-secondary">/50</span>
-                    </div>
+                      <span className="text-xs text-apple-secondary">/45</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-apple-disabled" />
+                    </Link>
                   ) : (
                     <span className="text-xs text-apple-secondary">暂无能力数据</span>
                   )}
