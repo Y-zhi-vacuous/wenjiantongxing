@@ -17,9 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
+RUN mkdir -p /app/data
+
 ENV FRONTEND_DIR=./frontend/dist
 ENV PORT=8080
 ENV DEBUG=false
+ENV DATABASE_URL=sqlite+aiosqlite:///./data/essay_app.db
 
 EXPOSE 8080
 

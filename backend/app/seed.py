@@ -71,6 +71,9 @@ SEED_TOPICS = [
 
 
 async def seed():
+    from app.db import engine, Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     async with async_session() as db:
         result = await db.execute(select(User).limit(1))
         if result.scalar_one_or_none():
