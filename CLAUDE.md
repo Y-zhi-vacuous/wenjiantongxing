@@ -16,6 +16,11 @@ cd frontend && npm run dev                                # 前端 (端口 5173�
 cd frontend && npm run build                              # 前端构建到 dist/
 git push                                                  # 推送（已配置 SSH）
 # GitHub Actions 自动构建 Docker → GHCR → Sealos 手动 Restart
+
+# APK 构建 (需要 Android Studio)
+# 1. Android Studio → Open → frontend/android
+# 2. Build → Build Bundle(s) / APK(s) → Build APK(s)
+# 3. APK 路径: frontend/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## 技术栈
