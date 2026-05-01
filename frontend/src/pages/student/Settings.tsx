@@ -13,7 +13,7 @@ const PROVIDERS = [
 export default function Settings() {
   const [config, setConfig] = useState({
     provider: 'zhipu', model_name: 'GLM-4-Flash-250414',
-    grading_model_name: 'GLM-4-Flash-250414', ocr_model_name: 'glm-4v',
+    grading_model_name: 'GLM-4-Flash-250414', ocr_model_name: 'glm-4.1v-thinking-flash',
     api_key: '', routing_strategy: 'smart' as 'smart' | 'cloud' | 'local',
   })
   const [saved, setSaved] = useState(false)
@@ -96,7 +96,7 @@ export default function Settings() {
         <div>
           <label className="block text-sm font-medium text-apple-text mb-1">OCR 模型</label>
           <input type="text" value={config.ocr_model_name} onChange={(e) => setConfig({ ...config, ocr_model_name: e.target.value })}
-                 className={inputClass} placeholder="默认：glm-4v" />
+                 className={inputClass} placeholder="默认：glm-4.1v-thinking-flash" />
         </div>
         <div>
           <label className="block text-sm font-medium text-apple-text mb-1">API Key</label>
