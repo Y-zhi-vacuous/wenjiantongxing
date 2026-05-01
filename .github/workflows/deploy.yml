@@ -14,10 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set lowercase image tag
-        id: vars
-        run: echo "tag=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/wenjiantongxing:latest" >> $GITHUB_OUTPUT
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -30,4 +26,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.vars.outputs.tag }}
+          tags: ghcr.io/y-zhi-vacuous/wenjiantongxing:latest
