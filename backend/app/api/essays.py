@@ -7,7 +7,7 @@ from app.db import get_db
 from app.models import User, Essay, EssayStatus, EssayReport
 from app.schemas import EssayCreate, EssayResponse, ReportResponse
 from app.auth import get_current_user
-from app.services.parsing import parse_file_content, parse_image_to_text
+from app.services.parsing import parse_file_content, parse_image_to_text_async
 
 router = APIRouter(prefix="/essays", tags=["作文"])
 
@@ -113,7 +113,7 @@ async def upload_image_essay(
     """上传手写作文图片"""
     content_bytes = await file.read()
     filename = file.filename or "essay.png"
-    content = parse_image_to_text(content_bytes)
+    content = await parse_image_to_text_async(content_bytes)
     essay = Essay(
         student_id=user.id,
         topic_id=topic_id,
