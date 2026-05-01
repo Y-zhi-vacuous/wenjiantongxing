@@ -59,7 +59,7 @@ def _parse_image(content_bytes: bytes) -> str:
             resp = await client.post(
                 "https://open.bigmodel.cn/api/paas/v4/chat/completions",
                 json={
-                    "model": "glm-4v-flash",
+                    "model": "glm-4.1v-thinking-flash",
                     "messages": [{
                         "role": "user",
                         "content": [
