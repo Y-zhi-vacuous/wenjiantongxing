@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: str = "uploads"
     FRONTEND_DIR: str = ""
+    CORS_ORIGINS: str = "http://localhost:5173"
 
     AI_PROVIDER: str = "zhipu"
     AI_MODEL: str = "glm-4-flash"
