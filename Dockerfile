@@ -22,7 +22,7 @@
   ENV FRONTEND_DIR=./frontend/dist
   ENV PORT=8080
   ENV DEBUG=false
-  ENV DATABASE_URL=sqlite+aiosqlite:///./data/essay_app.db
+  ENV DATABASE_URL=sqlite+aiosqlite:////app/data/essay_app.db
 
   EXPOSE 8080
 
