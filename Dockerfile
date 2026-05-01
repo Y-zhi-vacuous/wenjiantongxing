@@ -22,7 +22,7 @@ RUN mkdir -p /app/data
 ENV FRONTEND_DIR=./frontend/dist
 ENV PORT=8080
 ENV DEBUG=false
-ENV DATABASE_URL=sqlite+aiosqlite:////app/data/essay_app.db
+# DATABASE_URL 由运行时环境变量注入（Sealos / .env），默认使用 SQLite
 
 EXPOSE 8080
 

@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -7,12 +8,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = "change-me-in-production-use-a-real-secret"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./essay_app.db"
 
     REDIS_URL: str = "redis://localhost:6379/0"
-
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
@@ -29,17 +29,24 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
 def get_database_url() -> str:
-    """转换 DATABASE_URL 为 SQLAlchemy 可用的格式"""
-    settings = get_settings()
-    url = settings.DATABASE_URL
-    # Render PostgreSQL: postgres://user:pass@host/db → postgresql+asyncpg://user:pass@host/db
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif url.startswith("postgresql://") and "+" not in url:
+    """转换 DATABASE_URL 为 SQLAlchemy 可用的 async 格式"""
+    url = os.environ.get("DATABASE_URL", "")
+    if not url:
+        settings = get_settings()
+        url = settings.DATABASE_URL
+
+    print(f"[DB] Raw URL: {url[:50]}...")
+
+    if url.startswith("postgresql://") and "+" not in url:
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+
+    print(f"[DB] Converted URL: {url[:60]}...")
     return url
 
 
