@@ -24,7 +24,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173"
 
     AI_PROVIDER: str = "zhipu"
-    AI_MODEL: str = "glm-4-flash"
+    AI_MODEL: str = "GLM-4-Flash-250414"
+    AI_GRADING_MODEL: str = "GLM-4-Flash-250414"
+    AI_OCR_MODEL: str = "glm-4.1v-thinking-flash"
     AI_API_KEY: str = ""
 
     class Config:

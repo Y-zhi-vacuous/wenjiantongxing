@@ -2,8 +2,10 @@ from pydantic import BaseModel
 
 
 class AIConfigUpdate(BaseModel):
-    provider: str = "claude"
-    model_name: str = "claude-sonnet-4-6"
+    provider: str = "zhipu"
+    model_name: str = "GLM-4-Flash-250414"
+    grading_model_name: str = "GLM-4-Flash-250414"
+    ocr_model_name: str = "glm-4.1v-thinking-flash"
     api_key: str = ""
     routing_strategy: str = "smart"
 
@@ -13,6 +15,8 @@ class AIConfigResponse(BaseModel):
     user_id: int
     provider: str
     model_name: str
+    grading_model_name: str | None = None
+    ocr_model_name: str | None = None
     routing_strategy: str
     is_active: bool
 

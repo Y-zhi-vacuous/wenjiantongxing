@@ -12,8 +12,9 @@ const PROVIDERS = [
 
 export default function Settings() {
   const [config, setConfig] = useState({
-    provider: 'zhipu', model_name: 'glm-4-flash', api_key: '',
-    routing_strategy: 'smart' as 'smart' | 'cloud' | 'local',
+    provider: 'zhipu', model_name: 'GLM-4-Flash-250414',
+    grading_model_name: 'GLM-4-Flash-250414', ocr_model_name: 'glm-4.1v-thinking-flash',
+    api_key: '', routing_strategy: 'smart' as 'smart' | 'cloud' | 'local',
   })
   const [saved, setSaved] = useState(false)
 
@@ -88,9 +89,14 @@ export default function Settings() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-apple-text mb-1">模型名称</label>
-          <input type="text" value={config.model_name} onChange={(e) => setConfig({ ...config, model_name: e.target.value })}
-                 className={inputClass} placeholder="如 claude-sonnet-4-6" />
+          <label className="block text-sm font-medium text-apple-text mb-1">评分模型</label>
+          <input type="text" value={config.grading_model_name} onChange={(e) => setConfig({ ...config, grading_model_name: e.target.value })}
+                 className={inputClass} placeholder="默认：GLM-4-Flash-250414" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-apple-text mb-1">OCR 模型</label>
+          <input type="text" value={config.ocr_model_name} onChange={(e) => setConfig({ ...config, ocr_model_name: e.target.value })}
+                 className={inputClass} placeholder="默认：glm-4.1v-thinking-flash" />
         </div>
         <div>
           <label className="block text-sm font-medium text-apple-text mb-1">API Key</label>

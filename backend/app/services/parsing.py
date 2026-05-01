@@ -17,8 +17,8 @@ def parse_file_content(content_bytes: bytes, filename: str) -> str:
         return content_bytes.decode("utf-8", errors="replace")
 
 
-def parse_image_to_text(image_bytes: bytes) -> str:
-    return _parse_image(image_bytes)
+def parse_image_to_text(image_bytes: bytes, user_id: int = 0) -> str:
+    return _parse_image(image_bytes, user_id)
 
 
 def _parse_docx(content_bytes: bytes) -> str:
@@ -45,10 +45,11 @@ def _parse_pdf(content_bytes: bytes) -> str:
         return content_bytes.decode("utf-8", errors="replace")
 
 
-def _parse_image(content_bytes: bytes) -> str:
-    """使用智谱 GLM-4V 进行 OCR 识别"""
+def _parse_image(content_bytes: bytes, user_id: int = 0) -> str:
+    """使用智谱视觉模型进行 OCR 识别"""
     settings = get_settings()
     api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+    ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4.1v-thinking-flash"
 
     import httpx
     import asyncio
@@ -59,7 +60,7 @@ def _parse_image(content_bytes: bytes) -> str:
             resp = await client.post(
                 "https://open.bigmodel.cn/api/paas/v4/chat/completions",
                 json={
-                    "model": "glm-4.1v-thinking-flash",
+                    "model": ocr_model,
                     "messages": [{
                         "role": "user",
                         "content": [

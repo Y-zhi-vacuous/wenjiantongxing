@@ -35,9 +35,11 @@ async def update_ai_config(
         db.add(config)
     config.provider = req.provider
     config.model_name = req.model_name
+    config.grading_model_name = req.grading_model_name
+    config.ocr_model_name = req.ocr_model_name
     config.routing_strategy = RoutingStrategy(req.routing_strategy)
     if req.api_key:
-        config.api_key_encrypted = req.api_key  # TODO: encrypt in production
+        config.api_key_encrypted = req.api_key
     await db.commit()
     await db.refresh(config)
     return AIConfigResponse.model_validate(config)
