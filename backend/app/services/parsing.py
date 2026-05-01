@@ -70,7 +70,7 @@ async def _parse_image_async(content_bytes: bytes) -> str:
     """异步 OCR —— 智谱 GLM-4V"""
     settings = get_settings()
     api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
-    ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4.1v-thinking-flash"
+    ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4v-flash"
 
     content_bytes = _compress_if_needed(content_bytes)
     img_b64 = base64.b64encode(content_bytes).decode()
@@ -96,8 +96,15 @@ async def _parse_image_async(content_bytes: bytes) -> str:
         )
         data = resp.json()
         if "choices" in data:
-            text = data["choices"][0]["message"]["content"].strip()
-            print(f"[OCR] 成功，{len(text)} 字")
+            msg = data["choices"][0]["message"]
+            # thinking 模型：优先取 reasoning_content 后面的 content，或直接 content
+            text = (msg.get("content") or "").strip()
+            # 如果 content 为空，尝试从 reasoning_content 提取
+            if not text and msg.get("reasoning_content"):
+                text = msg["reasoning_content"].strip()
+            print(f"[OCR] 成功，{len(text)} 字 模型={data.get('model','?')}")
+            if len(text) < 20:
+                print(f"[OCR] ⚠️ 内容过短: {text}")
             return text
         print(f"[OCR] API错误: {data}")
         return f"[OCR失败: {data.get('error',{}).get('message','未知错误')}]"
