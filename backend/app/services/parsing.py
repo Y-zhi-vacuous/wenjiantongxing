@@ -51,6 +51,20 @@ def _parse_image(content_bytes: bytes, user_id: int = 0) -> str:
     api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
     ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4.1v-thinking-flash"
 
+    # 图片压缩：大图片 base64 编码会超出 API 限制
+    if len(content_bytes) > 500_000:
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(content_bytes))
+            w, h = img.size
+            img = img.resize((w // 2, h // 2))
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=60)
+            content_bytes = buf.getvalue()
+            print(f"[OCR] 图片已压缩: {len(content_bytes)} bytes")
+        except Exception as e:
+            print(f"[OCR] 压缩失败: {e}")
+
     import httpx
     import asyncio
 
