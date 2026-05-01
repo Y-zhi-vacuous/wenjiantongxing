@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "zhipu"
     AI_MODEL: str = "GLM-4-Flash-250414"
     AI_GRADING_MODEL: str = "GLM-4-Flash-250414"
-    AI_OCR_MODEL: str = "glm-4v-flash"
+    AI_OCR_MODEL: str = "glm-4v"
     AI_API_KEY: str = ""
 
     class Config:

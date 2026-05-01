@@ -5,7 +5,7 @@ class AIConfigUpdate(BaseModel):
     provider: str = "zhipu"
     model_name: str = "GLM-4-Flash-250414"
     grading_model_name: str = "GLM-4-Flash-250414"
-    ocr_model_name: str = "glm-4v-flash"
+    ocr_model_name: str = "glm-4v"
     api_key: str = ""
     routing_strategy: str = "smart"
 

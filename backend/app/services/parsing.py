@@ -70,7 +70,7 @@ async def _parse_image_async(content_bytes: bytes) -> str:
     """异步 OCR —— 智谱 GLM-4V"""
     settings = get_settings()
     api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
-    ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4v-flash"
+    ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4v"
 
     content_bytes = _compress_if_needed(content_bytes)
     img_b64 = base64.b64encode(content_bytes).decode()
