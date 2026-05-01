@@ -1,29 +1,66 @@
-name: Build and Deploy to GHCR
+name: Build Docker + APK
 
 on:
   push:
     branches: [master]
 
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ghcr.io/y-zhi-vacuous/wenjiantongxing:latest
+
+  apk:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 34
+          build-tools: 34.0.0
+
+      - name: Build web assets
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build APK
+        working-directory: frontend/android
+        run: |
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wenjiantongxing-debug
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk

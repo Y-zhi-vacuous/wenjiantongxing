@@ -2,5 +2,5 @@
 const isCapacitor = typeof (window as any).Capacitor !== 'undefined'
 
 export const API_BASE_URL = isCapacitor
-  ? 'https://wenjiantongxing.fly.dev/api'  // TODO: update to your deployed backend URL
+  ? 'https://wppyqjhwlqso.usw-1.sealos.app/api'
   : '/api'
