@@ -148,14 +148,7 @@ async def trigger_grading(
 ):
     """v2.0: 教师触发单篇评分"""
     if user.role.value != "teacher":
-        raise HTTPException(status_code=403, detail="仅教师可触发批改")
-
-    result = await db.execute(select(Essay).where(Essay.id == essay_id))
-    essay = result.scalar_one_or_none()
-    if not essay:
-        raise HTTPException(status_code=404, detail="作文不存在")
-    if essay.status == EssayStatus.grading:
-        raise HTTPException(status_code=400, detail="该作文正在批改中")
+        raise HTTPException(status_code=403, detail=f"仅教师可触发批改（当前角色: {user.role.value}）")
 
     essay.status = EssayStatus.grading
     essay.grading_requested_at = func.now()
@@ -179,7 +172,7 @@ async def list_ungraded_essays(
 ):
     """v2.0: 教师查看所有未评分作文（含已提交和新上传的）"""
     if user.role.value != "teacher":
-        raise HTTPException(status_code=403, detail="仅教师可查看未评分列表")
+        raise HTTPException(status_code=403, detail=f"仅教师可查看未评分列表（当前角色: {user.role.value}）")
 
     result = await db.execute(
         select(Essay)
@@ -198,7 +191,7 @@ async def grade_all_ungraded(
 ):
     """v2.0: 教师一键全部评分 — 串行逐篇处理"""
     if user.role.value != "teacher":
-        raise HTTPException(status_code=403, detail="仅教师可触发批改")
+        raise HTTPException(status_code=403, detail=f"仅教师可触发批改（当前角色: {user.role.value}）")
 
     result = await db.execute(
         select(Essay).where(
