@@ -90,6 +90,20 @@ export default function EssayView() {
             <div className="text-xs font-semibold text-apple-secondary tracking-wide uppercase mb-2">总分</div>
             <div className="text-7xl font-bold text-apple-text tracking-tighter">{report.total_score}</div>
             <div className="text-sm text-apple-secondary mt-1">满分 45 · {report.model_used || 'AI'}</div>
+            {report.topic_match && (
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium mt-3 ${
+                report.topic_match.includes('离题') ? 'bg-red-50 text-red-600' :
+                report.topic_match.includes('偏题') ? 'bg-orange-50 text-orange-600' :
+                'bg-green-50 text-green-600'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                {report.topic_match}
+              </div>
+            )}
+            {report.level && <div className="text-sm text-apple-secondary mt-1">{report.level}</div>}
+            {report.deduction_reason && report.deduction_reason !== '无' && (
+              <div className="text-xs text-red-500 mt-1">扣分原因：{report.deduction_reason}</div>
+            )}
             <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-apple-divider">
               {[
                 { label: '立意 / 10', value: report.score_thesis },

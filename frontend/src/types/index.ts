@@ -60,6 +60,7 @@ export interface EssayReport {
   score_language: number
   score_structure: number
   score_penmanship: number
+  topic_match?: string
   level?: string
   deduction_reason?: string
   word_count_actual?: number

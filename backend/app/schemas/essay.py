@@ -46,6 +46,7 @@ class ReportResponse(BaseModel):
     score_language: float
     score_structure: float
     score_penmanship: float
+    topic_match: str | None = None
     level: str | None = None
     deduction_reason: str | None = None
     word_count_actual: int | None = None
