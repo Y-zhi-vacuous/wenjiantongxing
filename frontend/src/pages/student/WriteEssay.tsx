@@ -46,8 +46,8 @@ export default function WriteEssay() {
         const { data } = await api.post('/essays/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
         essayId = data.id
       } else return
-      await api.post(`/essays/${essayId}/grade`)
-      navigate(`/student/essay/${essayId}`)
+      // v2.0: 不再自动触发批改，改为教师端批改
+      navigate(`/student/history`)
     } finally { setLoading(false) }
   }
 
@@ -197,7 +197,7 @@ export default function WriteEssay() {
           className="w-full mt-6 py-3.5 bg-apple-accent text-white rounded-full font-medium text-sm hover:bg-blue-600 active:scale-[0.98] transition-all duration-200 disabled:opacity-30 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          {loading ? '提交中...' : '提交并批改'}
+          {loading ? '提交中...' : '提交作文（等待老师批改）'}
         </button>
       </div>
     </div>

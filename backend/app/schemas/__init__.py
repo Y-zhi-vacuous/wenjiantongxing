@@ -5,4 +5,8 @@ from app.schemas.auth import (
 from app.schemas.essay import EssayCreate, EssayResponse, ReportResponse
 from app.schemas.topic import TopicCreate, TopicResponse
 from app.schemas.class_ import ClassCreate, ClassResponse, AddStudentRequest
-from app.schemas.ai_config import AIConfigUpdate, AIConfigResponse
+from app.schemas.ai_config import AIConfigUpdate, AIConfigResponse  # deprecated v2.0
+from app.schemas.ai_config_v2 import (
+    OCRConfigUpdate, OCRConfigResponse,
+    GradingConfigUpdate, GradingConfigResponse,
+)

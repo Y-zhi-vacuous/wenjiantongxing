@@ -3,7 +3,7 @@ import asyncio
 from sqlalchemy import select
 
 from app.db import async_session
-from app.models import User, UserRole, EssayTopic, TopicType, TopicGenre, TopicSource, Class, ClassStudent
+from app.models import User, UserRole, EssayTopic, TopicType, TopicGenre, TopicSource, Class, ClassStudent, OCRConfig, GradingConfig
 from app.auth import hash_password
 
 
@@ -102,6 +102,20 @@ async def seed():
         db.add(student)
         await db.flush()
         db.add(ClassStudent(class_id=cls.id, student_id=student.id))
+
+        # v2.0: 默认 OCR 配置（学生）
+        db.add(OCRConfig(
+            user_id=student.id,
+            model_name="glm-4.1v-thinking-flash",
+        ))
+
+        # v2.0: 默认评分配置（教师）
+        db.add(GradingConfig(
+            user_id=teacher.id,
+            provider="zhipu",
+            grading_model_name="GLM-4-Flash-250414",
+            ability_model_name="GLM-4-Flash-250414",
+        ))
 
         for t in SEED_TOPICS:
             title = t["title"]

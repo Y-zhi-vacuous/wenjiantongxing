@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
-import { GraduationCap, LayoutDashboard, Users, BookOpen, Settings } from 'lucide-react'
+import { GraduationCap, LayoutDashboard, Users, BookOpen, Settings, FileText } from 'lucide-react'
 
 const navItems = [
   { to: '/teacher/dashboard', icon: LayoutDashboard, label: '概览' },
+  { to: '/teacher/grading', icon: FileText, label: '批改' },
   { to: '/teacher/classes', icon: Users, label: '班级' },
   { to: '/teacher/topics', icon: BookOpen, label: '题库' },
   { to: '/teacher/settings', icon: Settings, label: '设置' },

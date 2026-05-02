@@ -1,60 +1,65 @@
-# Task Plan: 文鉴同行 — 实施总览
+# Task Plan: 文鉴同行 v2.0 — 实施总览
 
-## Goal
-构建 AI 作文批改系统「文鉴同行」：学生提交作文 → AI 批改 → 结构化报告 + 写作能力画像分析。支持 Web 访问 + Android APK 安装。
+## v2.0 Goal
+架构重构 — 学生端仅 OCR，评分与能力分析迁移至教师端，教师可配置多提供商（付费API/本地部署）
 
-## Current Phase
-Sealos 部署成功 ✅ — 后续：APK 构建
+## v2.0 Phases
 
-## Phases
+### Phase 0: 基础准备 ✅
+- [x] 提取 Prompt 到独立模块 (prompts/grader_prompts.py, prompts/ability_prompts.py)
+- [x] Essay 模型新增 graded_by 和 grading_requested_at 字段
+- [x] grader.py 和 ability.py 导入重构
 
-### Phase 1: 项目脚手架搭建 ✅
-- [x] 初始化后端项目 (FastAPI + SQLAlchemy)
-- [x] 初始化前端项目 (React + Vite + TypeScript + Tailwind)
-- [x] Docker Compose 编排 + .gitignore
+### Phase 1: 数据模型重构 ✅
+- [x] 拆分 AIConfig → OCRConfig (学生) + GradingConfig (教师)
+- [x] 新增 GradingProvider 枚举 (zhipu/openai/deepseek/claude/ollama/vllm)
+- [x] 幂等数据迁移 (migrations.py)
+- [x] 更新种子数据 (默认 OCR + Grading 配置)
+- [x] main.py 集成迁移调用
 
-### Phase 2: 后端核心 API ✅
-- [x] 数据模型 8 张表 (User/Essay/Topic/Report/AIConfig/Class/ClassStudent/StudentAbility)
-- [x] JWT 认证 (Header + Query Param)
-- [x] 作文 CRUD + 文件上传 (docx/pdf/image)
-- [x] GLM-4V 图片 OCR 识别
-- [x] 深圳中考真题题库 (8真题+2模拟，含写作要求)
-- [x] 班级管理 + 学生账号 (单个创建 + xlsx 批量导入/导出)
-- [x] AI 配置 + 密码修改
+### Phase 2: 后端服务/Agent 重构 ✅
+- [x] 统一 LLM 路由层 call_llm() 支持 6 提供商
+- [x] grader.py 使用统一路由 + 教师 GradingConfig
+- [x] grading.py 接受 teacher_id + 设置 graded_by
+- [x] ability.py 使用教师配置 + 统一路由
+- [x] OCR 服务使用学生 OCRConfig
+- [x] Prompt 优化 (切题 JSON 输出 + 能力分析教学建议)
 
-### Phase 3: AI 智能体层 ✅
-- [x] 智谱 GLM-4 真实 AI 批改
-- [x] 异步批改 + 异常隔离
-- [x] 学生能力分析 (四维画像 + 趋势 + 改进计划)
+### Phase 3: 后端 API 重构 ✅
+- [x] OCR 配置 API (GET/PUT /config/ocr, POST /config/ocr/test)
+- [x] 评分配置 API (GET/PUT /config/grading, POST /config/grading/test)
+- [x] 教师触发单篇评分 (POST /essays/{id}/grade — 需 teacher 角色)
+- [x] 未评分作文列表 (GET /essays/list/ungraded)
+- [x] 一键全部评分 (POST /essays/grade-all — 串行逐篇)
+- [x] 能力分析刷新 (POST /ability/refresh/{student_id})
+- [x] 旧版 /config/ai 保留向后兼容
 
-### Phase 4-5: 前端 ✅
-- [x] Apple Native UI (毛玻璃/半透明/阴影)
-- [x] 学生端：首页/写作/报告/历史/能力/设置
-- [x] 教师端：工作台/班级/题库/作文详情/学生能力
-- [x] 教师实名注册 + 学生账号教师管理
-- [x] 作文原文展示 + OCR 结果展示
+### Phase 4: 前端重构 ✅
+- [x] 学生 Settings 仅 OCR 配置
+- [x] 学生 WriteEssay 移除自动触发评分
+- [x] 教师 Settings 完整评分配置 UI (云端API + 本地部署)
+- [x] 教师 EssayView 新增「批改」按钮 + 轮询
+- [x] 教师 GradingQueue 页面 (待批改列表 + 一键全部 + 单篇批改)
+- [x] TypeScript 类型更新
+- [x] 导航更新 (TeacherNav 增加「批改」)
 
-### Phase 6: 部署 ✅
-- [x] GitHub Actions → GHCR 镜像自动构建
-- [x] Sealos 部署 (公网: wppyqjhwlqso.usw-1.sealos.app)
-- [x] SSH Key 永久解决 Git push
-- [ ] Android APK 构建
-
-## Architecture
+## Architecture v2.0
 ```
-React SPA (Web + Capacitor APK)
+React SPA (学生端: OCR配置 + 提交 / 教师端: 评分配置 + 批改)
     │ REST API
     ▼
 FastAPI (Docker → GHCR → Sealos)
     ├── SQLite (prod)
-    ├── GLM-4 (批改)
-    └── GLM-4V (OCR)
+    ├── OCRConfig (per student) → GLM-4V (OCR)
+    ├── GradingConfig (per teacher) → call_llm → 6 providers (评分)
+    └── GradingConfig (per teacher) → call_llm → 6 providers (能力分析)
 ```
 
 ## Decisions
 | Decision | Rationale |
 |----------|-----------|
-| GLM-4V 图片 OCR | 免装 Tesseract，手写体识别更准 |
-| SSH Git push | 国内网络稳定，不受 GFW 干扰 |
-| 绝对路径 DB | Sealos 容器文件系统兼容性 |
-| bcrypt==4.0.1 | passlib 兼容性修复 |
+| 评分迁移至教师端 | 教师可配置付费API或本地模型，更灵活 |
+| 统一 call_llm 路由 | 屏蔽 6 个提供商的差异，单一接口 |
+| 串行逐篇批改 | 避免并发 API 限流，单篇失败不影响其他 |
+| OCR 保留学生端 | 手写识别仅影响单个学生，实时性要求高 |
+| Prompt 独立模块 | 便于迭代调优，代码与 Prompt 分离 |

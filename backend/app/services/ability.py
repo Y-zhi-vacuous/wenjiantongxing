@@ -1,13 +1,21 @@
 """
-学生写作能力分析服务
-每次批改后自动更新，从 AI 报告中提取个性化反馈
+学生写作能力分析服务 (v2.0)
+
+v2.0 变化:
+  - 由教师触发 (update_student_ability 接受 teacher_id)
+  - 使用教师 GradingConfig 配置的模型
+  - 统一 LLM 路由层调用
+  - 改进的 Prompt (含教学建议 + 错误模式识别)
 """
+import json
 from sqlalchemy import select
 from app.db import async_session
 from app.models import Essay, EssayReport, StudentAbility
+from app.models.grading_config import GradingConfig, GradingProvider
+from app.agents.prompts.ability_prompts import ABILITY_SUMMARY_PROMPT
+from app.agents.router import call_llm
 
 
-# 五项维度满分（对应新的评分体系）
 MAX_SCORES = {
     "thesis": 10,
     "content": 15,
@@ -17,7 +25,8 @@ MAX_SCORES = {
 }
 
 
-async def update_student_ability(essay_id: int):
+async def update_student_ability(essay_id: int, teacher_id: int = 0):
+    """v2.0: 教师触发能力分析更新，使用教师评分配置"""
     async with async_session() as db:
         essay_result = await db.execute(select(Essay).where(Essay.id == essay_id))
         essay = essay_result.scalar_one_or_none()
@@ -31,13 +40,11 @@ async def update_student_ability(essay_id: int):
         if not report:
             return
 
-        # 获取该学生所有已批改的作文
         history_result = await db.execute(
             select(Essay).where(Essay.student_id == essay.student_id, Essay.status == "graded")
         )
         all_essays = history_result.scalars().all()
 
-        # 获取或创建能力记录
         ability_result = await db.execute(
             select(StudentAbility).where(StudentAbility.student_id == essay.student_id)
         )
@@ -46,7 +53,6 @@ async def update_student_ability(essay_id: int):
             ability = StudentAbility(student_id=essay.student_id)
             db.add(ability)
 
-        # 构建分数历史（含五项维度）
         score_history = []
         all_suggestions = []
         all_comments = []
@@ -65,7 +71,6 @@ async def update_student_ability(essay_id: int):
                     "structure": r.score_structure,
                     "penmanship": r.score_penmanship,
                 })
-                # 收集 AI 的点评和建议
                 if r.suggestions:
                     all_suggestions.extend(r.suggestions)
                 if r.overall_comment:
@@ -75,14 +80,12 @@ async def update_student_ability(essay_id: int):
         ability.overall_score = round(sum(h["total_score"] for h in score_history) / n, 1) if n > 0 else 0
         ability.essay_count = n
 
-        # 五维能力值（百分制）
         for dim, mx in MAX_SCORES.items():
             scores = [h[dim] / mx * 100 for h in score_history]
             setattr(ability, f"{dim}_ability", round(sum(scores) / n, 1))
 
         ability.score_history = score_history
 
-        # 优劣势：基于最新的五维能力值
         dims = [
             ("立意能力", ability.thesis_ability),
             ("内容能力", ability.content_ability),
@@ -94,12 +97,10 @@ async def update_student_ability(essay_id: int):
         ability.strengths = [d[0] for d in dims[:2]]
         ability.weaknesses = [d[0] for d in dims[-2:]]
 
-        # 从 AI 报告中生成个性化改进建议
         ability.improvement_plan = await _build_personalized_plan_async(
-            ability, score_history, all_suggestions
+            ability, score_history, all_suggestions, teacher_id=teacher_id
         )
 
-        # 词汇统计
         total_words = sum(e.word_count or 0 for e in all_essays)
         ability.vocabulary_stats = {
             "avg_word_count": round(total_words / n) if n > 0 else 0,
@@ -111,60 +112,57 @@ async def update_student_ability(essay_id: int):
         await db.commit()
 
 
-ABILITY_SUMMARY_PROMPT = """你是深圳中考语文教学专家。请基于以下学生的历史作文评分数据，生成一份个性化的写作能力分析报告。
-
-## 学生历史评分数据
-{score_data}
-
-## 学生各篇作文的 AI 批改建议
-{suggestions_text}
-
-## 要求
-请输出 JSON 格式（不要用 ``` 包裹）：
-{
-  "overall_assessment": "该生写作能力的总体评价（80-150字），指出最关键的问题和最突出的优点",
-  "dimensions": [
-    {"dimension": "立意能力", "score": 数字(0-100), "assessment": "具体分析15-30字", "action_items": ["具体可执行的改进措施1", "措施2"]},
-    {"dimension": "内容能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
-    {"dimension": "语言能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
-    {"dimension": "结构能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
-    {"dimension": "文面能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]}
-  ],
-  "priority": "当前最急需改进的1-2个方面（15字以内）"
-}"""
-
-
-async def _build_personalized_plan_async(ability, history, all_suggestions) -> list:
-    """使用 AI 生成个性化能力分析报告，降级到关键词匹配"""
-    # 先尝试 AI 生成
+async def _build_personalized_plan_async(ability, history, all_suggestions, teacher_id: int = 0) -> list:
+    """使用教师配置的 AI 生成个性化能力分析报告，降级到关键词匹配"""
     try:
-        result = await _call_ability_ai(ability, history, all_suggestions)
+        result = await _call_ability_ai(ability, history, all_suggestions, teacher_id=teacher_id)
         if result and len(result) >= 4:
             return result
     except Exception as e:
         print(f"[ABILITY] AI 生成失败: {e}")
 
-    # 降级：关键词匹配
     return _build_keyword_plan(ability, history, all_suggestions)
 
 
-async def _call_ability_ai(ability, history, all_suggestions):
-    """调用 GLM-4 生成能力分析"""
-    import httpx
-    from app.config import get_settings
+async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 0):
+    """v2.0: 使用教师 GradingConfig + 统一路由层"""
 
-    settings = get_settings()
-    api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+    # 读取教师评分配置
+    provider = "zhipu"
+    ability_model = "GLM-4-Flash-250414"
+    api_key = ""
+    base_url = None
+    local_endpoint_url = None
+
+    if teacher_id > 0:
+        try:
+            async with async_session() as db:
+                config_result = await db.execute(
+                    select(GradingConfig).where(GradingConfig.user_id == teacher_id)
+                )
+                config = config_result.scalar_one_or_none()
+                if config and config.is_active:
+                    provider = config.provider.value if isinstance(config.provider, GradingProvider) else config.provider
+                    ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
+                    api_key = config.api_key_encrypted or ""
+                    base_url = config.base_url
+                    local_endpoint_url = config.local_endpoint_url
+        except Exception as e:
+            print(f"[ABILITY] 读取教师配置失败: {e}")
+
+    if not api_key:
+        from app.config import get_settings
+        settings = get_settings()
+        api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
 
     # 构造分数数据
     score_lines = []
-    for h in history[-5:]:  # 最近 5 篇
+    for h in history[-5:]:
         score_lines.append(
             f"- {h['date']} 《{h['title']}》: 总分{h['total_score']}(立意{h['thesis']}/内容{h['content']}/语言{h['language']}/结构{h['structure']}/文面{h['penmanship']})"
         )
     score_data = "\n".join(score_lines) if score_lines else "暂无数据"
 
-    # 去重并取最近的建议
     seen = set()
     unique_suggestions = []
     for s in all_suggestions:
@@ -176,72 +174,95 @@ async def _call_ability_ai(ability, history, all_suggestions):
 
     prompt = ABILITY_SUMMARY_PROMPT.replace("{score_data}", score_data).replace("{suggestions_text}", suggestions_text)
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-            json={
-                "model": "GLM-4-Flash-250414",
-                "messages": [
-                    {"role": "system", "content": "你是深圳中考语文教学专家，请基于学生历史数据生成个性化能力分析，输出JSON。"},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.5,
-                "max_tokens": 2048,
-            },
-            headers={"Authorization": f"Bearer {api_key}"},
-        )
-        data = resp.json()
-        if "choices" not in data:
-            return None
+    result = await call_llm(
+        provider=provider,
+        model=ability_model,
+        messages=[
+            {"role": "system", "content": "你是深圳中考语文教学专家，请基于学生历史数据生成个性化能力分析，输出JSON。"},
+            {"role": "user", "content": prompt},
+        ],
+        api_key=api_key,
+        temperature=0.5,
+        max_tokens=2048,
+        base_url=base_url,
+        local_endpoint_url=local_endpoint_url,
+        timeout=60,
+    )
 
-        text = data["choices"][0]["message"]["content"].strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1]
-        if text.endswith("```"):
-            text = text[:-3]
+    text = result["content"].strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
 
-        import json
-        ai_result = json.loads(text)
+    ai_result = json.loads(text)
 
-        plans = []
-        # 总体评价
-        if ai_result.get("overall_assessment"):
+    plans = []
+    if ai_result.get("overall_assessment"):
+        plans.append({
+            "dimension": "综合评估",
+            "level": "",
+            "score": ability.overall_score,
+            "suggestions": [ai_result["overall_assessment"]],
+        })
+    if ai_result.get("priority"):
+        plans.append({
+            "dimension": "优先改进",
+            "level": "",
+            "score": 0,
+            "suggestions": [ai_result["priority"]],
+        })
+
+    for dim in ai_result.get("dimensions", []):
+        plans.append({
+            "dimension": dim.get("dimension", ""),
+            "level": _score_to_level(dim.get("score", 50)),
+            "score": dim.get("score", 50),
+            "suggestions": [dim.get("assessment", "")] + dim.get("action_items", []),
+        })
+
+    # v2.0 新增: 教学建议
+    teaching = ai_result.get("teaching_recommendations", {})
+    if teaching:
+        teaching_items = []
+        if teaching.get("immediate_week"):
+            teaching_items.append(f"本周: {teaching['immediate_week']}")
+        if teaching.get("short_term_2weeks"):
+            teaching_items.append(f"2周: {teaching['short_term_2weeks']}")
+        if teaching.get("medium_term_month"):
+            teaching_items.append(f"1月: {teaching['medium_term_month']}")
+        if teaching_items:
             plans.append({
-                "dimension": "综合评估",
-                "level": "",
-                "score": ability.overall_score,
-                "suggestions": [ai_result["overall_assessment"]],
-            })
-        if ai_result.get("priority"):
-            plans.append({
-                "dimension": "优先改进",
-                "level": "",
+                "dimension": "教学建议",
+                "level": "计划",
                 "score": 0,
-                "suggestions": [ai_result["priority"]],
+                "suggestions": teaching_items,
             })
 
-        # 五维度分析
-        for dim in ai_result.get("dimensions", []):
+    # v2.0 新增: 错误模式
+    error_patterns = ai_result.get("error_patterns", [])
+    if error_patterns:
+        error_items = [f"{ep['pattern']} (出现{ep.get('count', '?')}次, 例: {ep.get('example', '')})" for ep in error_patterns[:5]]
+        if error_items:
             plans.append({
-                "dimension": dim.get("dimension", ""),
-                "level": _score_to_level(dim.get("score", 50)),
-                "score": dim.get("score", 50),
-                "suggestions": [dim.get("assessment", "")] + dim.get("action_items", []),
+                "dimension": "共性错误",
+                "level": "警告",
+                "score": 0,
+                "suggestions": error_items,
             })
 
-        # 趋势
-        if len(history) >= 2:
-            recent = history[-3:] if len(history) >= 3 else history
-            trend = recent[-1]["total_score"] - recent[0]["total_score"]
-            if abs(trend) > 1:
-                plans.append({
-                    "dimension": "整体趋势",
-                    "level": "明显进步" if trend > 2 else "有所下滑",
-                    "score": trend,
-                    "suggestions": ["保持当前方法" if trend > 2 else "针对薄弱项专项训练"],
-                })
+    if len(history) >= 2:
+        recent = history[-3:] if len(history) >= 3 else history
+        trend = recent[-1]["total_score"] - recent[0]["total_score"]
+        if abs(trend) > 1:
+            plans.append({
+                "dimension": "整体趋势",
+                "level": "明显进步" if trend > 2 else "有所下滑",
+                "score": trend,
+                "suggestions": ["保持当前方法" if trend > 2 else "针对薄弱项专项训练"],
+            })
 
-        return plans
+    return plans
 
 
 def _build_keyword_plan(ability, history, all_suggestions) -> list:

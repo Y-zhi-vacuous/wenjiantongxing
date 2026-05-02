@@ -1,6 +1,25 @@
 # Progress Log
 
-## 2026-04-30 ~ 2026-05-02
+## 2026-05-02: v2.0 架构重构
+
+### Phase 0: 基础准备 ✅
+Prompt 模块化 · graded_by 字段
+
+### Phase 1: 数据模型 ✅
+OCRConfig/GradingConfig 拆分 · 迁移 · 种子数据
+
+### Phase 2: 服务层 ✅
+统一 LLM 路由 (call_llm, 6 providers) · grader 重构 · ability 重构 · OCR 学生配置 · Prompt 优化
+
+### Phase 3: API ✅
+OCR 配置 API · 评分配置 API · 教师触发评分 · 未评分列表 · 一键全部 · 能力刷新
+
+### Phase 4: 前端 ✅
+学生 Settings(OCR only) · WriteEssay(去自动批改) · 教师 Settings(评分配置UI) · EssayView(批改按钮) · GradingQueue(待批改列表+一键全部) · 导航更新
+
+---
+
+## 2026-04-30 ~ 2026-05-02: v1.0
 
 ### 设计 ✅
 需求澄清 → FastAPI+React → Apple UI 打样

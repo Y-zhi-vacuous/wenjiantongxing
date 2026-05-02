@@ -1,98 +1,19 @@
 """
-批改 Agent — 深圳中考六类文评分标准
-支持智谱 GLM API 和 Mock 模式
-"""
+批改 Agent — 深圳中考六类文两步法评分 (v2.0)
 
+v2.0 变化:
+  - 使用统一 LLM 路由层 (call_llm) 替代硬编码的 API 调用
+  - 接受 teacher_id 参数，从教师 GradingConfig 读取配置
+  - 切题检查 JSON 解析 (含 confidence + reasoning)
+"""
 import json
-import httpx
+import asyncio
 from sqlalchemy import select
 from app.db import async_session
-from app.models.ai_config import AIConfig
+from app.models.grading_config import GradingConfig, GradingProvider
+from app.agents.prompts.grader_prompts import GRADER_PROMPT, TOPIC_CHECK_PROMPT
+from app.agents.router import call_llm
 
-GRADER_PROMPT = """你是深圳中考语文阅卷老师。批改前必须完成以下判断。
-
-## ⚠️ 第一步：审题匹配检查（必须最先完成）
-
-{topic_info}
-请仔细阅读上面的题目和写作要求，然后判断学生作文是否切合题目。
-判断标准：作文的**核心主题**必须与题目要求一致，不能仅凭文中出现的关键词判断。
-
-- **完全离题**：核心主题与题目完全无关
-- **部分偏题**：开头或局部涉及题目，但核心主题偏离（如题目要求写"风景变化"，作文前两段写景后全部转为内心感悟，风景只是引子而非主线）
-- **基本切题**：核心主题与题目相关，偶有局部偏离
-- **切题**：全文核心紧扣题目
-
-**偏题判断示例**：
-- 题目"看，风景在变"→ 学生写海边日落→月光→感悟"我是自己的星光"→ **部分偏题**（海边景色只是引子，核心是自我发现，未围绕"风景变化"展开）
-- 题目"见证美好"→ 学生写目睹陌生人拾金不昧→ **切题**
-- 题目"因为有我"→ 学生写自己组织班级活动→ **切题**
-- 题目"我的动力源"→ 学生写喜欢打游戏→ **完全离题**（除非能论证游戏如何成为积极动力）
-
-**关键原则**：如果去掉题目中的关键词，作文的核心内容是否依然成立？如果是，说明该关键词并未主导全文，应判偏题。
-
-### 强制规则
-1. 完全离题 → 立意≤2，总分≤10，判六类文，无需详细批改
-2. 部分偏题 → 立意≤5，总分≤29
-3. 字数<100 → ≤10分；100-300 → ≤29分；300-500 → ≤34分
-
-## 第二步：评分标准（满分 45 分，五项维度）
-
-### 等级评定表
-| 维度(满分) | 一类文 | 二类文 | 三类文 | 四类文 | 五类文 | 六类文 |
-|-----------|--------|--------|--------|--------|--------|--------|
-| 立意(10) | 立意深刻、角度新颖、主题鲜明、富有哲思 | 立意正确、有一定深度、角度较好 | 立意正确、有基本认识 | 立意基本正确、较浅显 | 立意模糊、认识不清 | 严重偏题、不知所云 |
-| 内容(15) | 选材精当、真挚感人、详略得当、细节丰富 | 材料具体、感情真实、构思新颖 | 材料较具体、有真情实感 | 材料较空泛、细节不足 | 选材不当、内容单薄 | 内容空泛、无具体材料 |
-| 语言(10) | 富有文采、表达精妙、修辞娴熟 | 生动流畅、用词准确、有表现力 | 通顺连贯、表达清楚 | 基本通顺、偶有语病 | 不够通顺、语病较多 | 文理不通、词不达意 |
-| 结构(5)  | 结构严谨、首尾呼应、过渡精妙 | 结构完整、条理清晰 | 有头有尾、段落分明 | 结构基本完整 | 结构松散、条理不清 | 杂乱无章、无段落意识 |
-| 文面(5)  | 卷面整洁、标点规范、无错别字 | 卷面整洁、标点正确 | 卷面较整洁 | 错误较少 | 错误较多 | 字迹潦草、错别字多 |
-
-### 强制扣分规则（必须严格执行）
-1. **完全离题**：立意0分，总分不超过 10 分，判为六类文
-2. **部分偏题**：立意不超过 5 分，降两档处理
-3. **字数不足 100 字**：总分不超过 10 分，判为六类文
-4. **字数 100-300 字**：总分不超过 29 分
-5. **字数 300-500 字**：总分不超过 34 分
-6. **字数不足 600 字**：在应有等级基础上降一档
-7. **出现真实校名、人名、地名**：降一档处理
-8. **抄袭套作**：总分不超过 5 分，判为六类文
-9. **五项分数之和必须等于 total_score**
-
-### 评分步骤
-1. **审题匹配**：最关键一步。通读题目要求，判断作文是否切题。若不切题，直接按强制规则给出低分，无需详细批改
-2. **统计字数**：判断强制扣分规则
-3. **逐项评定**：立意/内容/语言/结构/文面
-4. **综合定级**：确定等级和总分
-5. **验算**：total_score = 五项之和
-
-## 输出格式
-严格输出 JSON（禁止用 ``` 包裹）。注意 topic_match 必须准确，这是评分的第一依据：
-{
-  "topic_match": "切题/基本切题/部分偏题/完全离题（必须准确判断！）",
-  "word_count_actual": 实际字数,
-  "level": "一类文/二类文/三类文/四类文/五类文/六类文",
-  "total_score": 数字(必须=五项之和),
-  "score_thesis": 数字(0-10),
-  "score_content": 数字(0-15),
-  "score_language": 数字(0-10),
-  "score_structure": 数字(0-5),
-  "score_penmanship": 数字(0-5),
-  "deduction_reason": "扣分原因，无则填'无'",
-  "basic_errors": {
-    "typos": [{"text":"错字","correction":"更正","position":位置}],
-    "grammar": [{"text":"病句","suggestion":"改法","position":位置}],
-    "punctuation": [{"text":"标点错误","correction":"更正","position":位置}]
-  },
-  "paragraph_reviews": [
-    {"paragraph_index":1,"original":"段落首句15字","comment":"点评","suggestion":"修改建议"}
-  ],
-  "overall_comment": "总体评价150-300字",
-  "suggestions": ["3-5条具体建议"]
-}
-
-## 学生作文
-{content}
-
-请批改："""
 
 MOCK_REPORT = {
     "level": "二类文",
@@ -124,154 +45,127 @@ MOCK_REPORT = {
 }
 
 
-TOPIC_CHECK_PROMPT = """你是一个审题判断工具。请严格对比以下作文题目和学生作文，只输出一个词。
+async def run_grader(content: str, topic_info: str = "", teacher_id: int = 0) -> dict:
+    """两步批改：先独立判切题 → 注入判定评分 (v2.0: 教师配置驱动)"""
 
-题目要求：
-{topic_info}
+    # 读取教师评分配置
+    provider = "zhipu"
+    grading_model = "GLM-4-Flash-250414"
+    api_key = ""
+    base_url = None
+    local_endpoint_url = None
 
-学生作文核心内容（前800字）：
-{content}
-
-请判断：
-- 如果作文核心主题与题目要求一致，只输出：切题
-- 如果作文只是开头或局部提到题目关键词，但核心内容转向其他主题（如题目要求写"风景变化"却写成内心感悟"做自己的星光"），只输出：偏题
-- 如果作文与题目完全无关，只输出：离题
-
-注意：关键看核心主题。如果去掉作文里与题目相关的几个词，作文主题不变，那就是偏题。
-
-只输出一个词（切题/偏题/离题），不要任何解释。"""
-
-
-async def run_grader(content: str, topic_info: str = "", user_id: int = 0) -> dict:
-    """两步批改：先独立判切题，再评分，最后强制注入切题判定"""
-
-    from app.config import get_settings
-    settings = get_settings()
-    provider = settings.AI_PROVIDER or "zhipu"
-    grading_model = settings.AI_GRADING_MODEL or "GLM-4-Flash-250414"
-    api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
-
-    if user_id > 0:
+    if teacher_id > 0:
         try:
             async with async_session() as db:
-                result = await db.execute(select(AIConfig).where(AIConfig.user_id == user_id))
+                result = await db.execute(
+                    select(GradingConfig).where(GradingConfig.user_id == teacher_id)
+                )
                 config = result.scalar_one_or_none()
-                if config and config.api_key_encrypted:
-                    provider = config.provider
+                if config and config.is_active:
+                    provider = config.provider.value if isinstance(config.provider, GradingProvider) else config.provider
                     grading_model = config.grading_model_name or "GLM-4-Flash-250414"
-                    api_key = config.api_key_encrypted
-        except Exception:
-            pass
+                    api_key = config.api_key_encrypted or ""
+                    base_url = config.base_url
+                    local_endpoint_url = config.local_endpoint_url
+        except Exception as e:
+            print(f"[GRADER] 读取教师配置失败: {e}")
+
+    if not api_key:
+        from app.config import get_settings
+        settings = get_settings()
+        api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
 
     # 第一步：独立 API 判断切题
     topic_match = "切题"
     if topic_info:
-        topic_match = await _check_topic_match(content, topic_info, api_key)
+        topic_match = await _check_topic_match(content, topic_info, provider, api_key, base_url, local_endpoint_url)
 
     # 第二步：主评分（注入切题判定）
-    if provider == "zhipu":
-        result = await _call_zhipu(content, topic_info, topic_match, grading_model, api_key)
-    else:
-        result = await _call_openai_compatible(content, topic_info, topic_match, grading_model, api_key, provider)
+    prompt = GRADER_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:3000])
+    prompt = prompt.replace("请批改：", f"【系统已判定：{topic_match}，请基于此判定进行评分】\n请批改：")
 
-    result["topic_match"] = topic_match
-    return result
+    try:
+        result = await call_llm(
+            provider=provider,
+            model=grading_model,
+            messages=[
+                {"role": "system", "content": "你是深圳中考语文阅卷老师，请严格按照深圳中考六类文评分标准批改，输出JSON格式结果。"},
+                {"role": "user", "content": prompt},
+            ],
+            api_key=api_key,
+            temperature=0.7,
+            max_tokens=4096,
+            base_url=base_url,
+            local_endpoint_url=local_endpoint_url,
+            timeout=90,
+        )
+        parsed = _parse_ai_response(result["content"], grading_model)
+    except Exception as e:
+        print(f"[GRADER] AI 评分调用失败: {e}")
+        parsed = MOCK_REPORT
+
+    parsed["topic_match"] = topic_match
+    return parsed
 
 
-async def _check_topic_match(content: str, topic_info: str, api_key: str) -> str:
-    """专用 API 调用，仅判断切题"""
-    import httpx
+async def _check_topic_match(
+    content: str, topic_info: str,
+    provider: str, api_key: str,
+    base_url: str | None, local_endpoint_url: str | None,
+) -> str:
+    """专用 API 调用，仅判断切题 (v2.0: JSON 输出含 confidence)"""
     prompt = TOPIC_CHECK_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:800])
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-            json={
-                "model": "GLM-4-Flash-250414",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.0,
-                "max_tokens": 10,
-            },
-            headers={"Authorization": f"Bearer {api_key}"},
+    try:
+        result = await call_llm(
+            provider=provider,
+            model="GLM-4-Flash-250414",  # 切题检查始终使用快速模型
+            messages=[{"role": "user", "content": prompt}],
+            api_key=api_key,
+            temperature=0.0,
+            max_tokens=100,
+            base_url=base_url,
+            local_endpoint_url=local_endpoint_url,
+            timeout=30,
         )
-        data = resp.json()
-        if "choices" in data:
-            answer = data["choices"][0]["message"]["content"].strip()
-            print(f"[TOPIC_CHECK] 原始输出: '{answer}'")
-            if "偏题" in answer or "离题" in answer:
-                return "部分偏题" if "偏" in answer else "完全离题"
-            if "切题" in answer:
-                return "切题"
+        text = result["content"].strip()
+        print(f"[TOPIC_CHECK] 原始输出: '{text}'")
+
+        # 尝试 JSON 解析
+        try:
+            clean = text.strip()
+            if clean.startswith("```"):
+                clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+            if clean.endswith("```"):
+                clean = clean[:-3]
+            data = json.loads(clean)
+            match = data.get("topic_match", "")
+            confidence = data.get("confidence", 0)
+            reasoning = data.get("reasoning", "")
+            print(f"[TOPIC_CHECK] 匹配={match}, 置信度={confidence}, 理由={reasoning}")
+        except json.JSONDecodeError:
+            match = text
+            print(f"[TOPIC_CHECK] JSON 解析失败，使用原始输出")
+
+        if "离题" in match:
+            return "完全离题"
+        if "偏题" in match:
+            return "部分偏题"
+        if "切题" in match:
+            return "切题"
+
         print(f"[TOPIC_CHECK] 无法解析，默认切题")
+        return "切题"
+    except Exception as e:
+        print(f"[TOPIC_CHECK] API 调用失败: {e}，默认切题")
         return "切题"
 
 
-async def _call_zhipu(content: str, topic_info: str, topic_match: str, model: str, api_key: str) -> dict:
-    """调用智谱 GLM API 批改"""
-    url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-    prompt = GRADER_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:3000])
-    prompt = prompt.replace("请批改：", f"【系统已判定：{topic_match}，请基于此判定进行评分】\n请批改：")
-
-    async with httpx.AsyncClient(timeout=90) as client:
-        resp = await client.post(url, json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "你是深圳中考语文阅卷老师，请严格按照深圳中考六类文评分标准批改，输出JSON格式结果。"},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.7,
-            "max_tokens": 4096,
-        }, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        })
-        data = resp.json()
-
-        if "choices" not in data:
-            print(f"[Zhipu Error] {data}")
-            return MOCK_REPORT
-
-        text = data["choices"][0]["message"]["content"]
-        return _parse_ai_response(text, model)
-
-
-async def _call_openai_compatible(content: str, topic_info: str, topic_match: str, model: str, api_key: str, provider: str) -> dict:
-    """调用 OpenAI 兼容 API"""
-    base_urls = {
-        "openai": "https://api.openai.com/v1/chat/completions",
-        "deepseek": "https://api.deepseek.com/v1/chat/completions",
-    }
-    url = base_urls.get(provider, "https://api.openai.com/v1/chat/completions")
-    prompt = GRADER_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:3000])
-    prompt = prompt.replace("请批改：", f"【系统已判定：{topic_match}，请基于此判定进行评分】\n请批改：")
-
-    async with httpx.AsyncClient(timeout=90) as client:
-        resp = await client.post(url, json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "你是深圳中考语文阅卷老师，请严格按照深圳中考六类文评分标准批改，输出JSON格式结果。"},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.7,
-            "max_tokens": 4096,
-        }, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        })
-        data = resp.json()
-
-        if "choices" not in data:
-            return MOCK_REPORT
-
-        text = data["choices"][0]["message"]["content"]
-        return _parse_ai_response(text, model)
-
-
 def _parse_ai_response(text: str, model: str) -> dict:
-    """解析 AI 返回的 JSON。解析失败时记录原始输出并返回错误标记"""
+    """解析 AI 返回的 JSON。解析失败时记录原始输出并返回零分报告"""
     text = text.strip()
 
-    # 去除 markdown 代码块
     if text.startswith("```"):
         lines = text.split("\n")
         text = "\n".join(lines[1:]) if len(lines) > 1 else text
@@ -293,7 +187,6 @@ def _parse_ai_response(text: str, model: str) -> dict:
             except json.JSONDecodeError:
                 pass
 
-    # 解析失败：记录原始输出，返回零分报告（不静默兜底）
     print(f"[GRADER] JSON解析失败！AI原始输出前500字:\n{text[:500]}")
     return {
         "level": "六类文",

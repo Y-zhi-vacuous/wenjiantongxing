@@ -1,5 +1,5 @@
 from sqlalchemy import String, Enum as SAEnum, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from datetime import datetime
 import enum
 
@@ -26,6 +26,8 @@ class User(Base):
     default_password: Mapped[str | None] = mapped_column(String(256))    # 明文默认密码(仅教师创建学生时记录)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    essays = relationship("Essay", back_populates="student")
-    ai_config = relationship("AIConfig", back_populates="user", uselist=False)
+    essays = relationship("Essay", back_populates="student", primaryjoin="User.id == foreign(Essay.student_id)")
+    ai_config = relationship("AIConfig", back_populates="user", uselist=False)  # deprecated v2.0
+    ocr_config = relationship("OCRConfig", back_populates="user", uselist=False)
+    grading_config = relationship("GradingConfig", back_populates="user", uselist=False)
     ability = relationship("StudentAbility", back_populates="student", uselist=False)

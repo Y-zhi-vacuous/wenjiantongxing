@@ -18,6 +18,8 @@ class EssayResponse(BaseModel):
     status: str
     submitted_at: datetime
     graded_at: datetime | None = None
+    graded_by: int | None = None
+    grading_requested_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

@@ -1,5 +1,6 @@
 import time
 import traceback
+import datetime as dt
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -8,7 +9,8 @@ from app.models import Essay, EssayStatus, EssayReport
 from app.agents.grader import run_grader
 
 
-async def grade_essay(essay_id: int):
+async def grade_essay(essay_id: int, teacher_id: int = 0):
+    """v2.0: 教师触发批改，使用教师评分配置"""
     start = time.time()
     async with async_session() as db:
         try:
@@ -17,6 +19,11 @@ async def grade_essay(essay_id: int):
             )
             essay = result.scalar_one_or_none()
             if not essay:
+                return
+
+            # 确认状态为 grading（API 已设置），防止在非 grading 状态下运行
+            if essay.status != EssayStatus.grading:
+                print(f"[GRADING] essay={essay_id} 状态异常: {essay.status}，跳过")
                 return
 
             content = essay.content or ""
@@ -34,6 +41,8 @@ async def grade_essay(essay_id: int):
                 )
                 db.add(report)
                 essay.status = EssayStatus.graded
+                essay.graded_by = teacher_id
+                essay.graded_at = dt.datetime.now(dt.timezone.utc)
                 await db.commit()
                 return
             if len(content) < 100:
@@ -47,6 +56,8 @@ async def grade_essay(essay_id: int):
                 )
                 db.add(report)
                 essay.status = EssayStatus.graded
+                essay.graded_by = teacher_id
+                essay.graded_at = dt.datetime.now(dt.timezone.utc)
                 await db.commit()
                 return
 
@@ -60,7 +71,7 @@ async def grade_essay(essay_id: int):
                     topic_info += f"写作要求：{topic.extra_requirements}\n"
                 topic_info += f"文体：{topic.genre.value}\n"
 
-            report_data = await run_grader(content, topic_info=topic_info, user_id=essay.student_id)
+            report_data = await run_grader(content, topic_info=topic_info, teacher_id=teacher_id)
 
             # 分数上限保护
             def clamp(v, mx):
@@ -105,11 +116,14 @@ async def grade_essay(essay_id: int):
             )
             db.add(report)
             essay.status = EssayStatus.graded
+            essay.graded_by = teacher_id
+            essay.graded_at = dt.datetime.now(dt.timezone.utc)
             await db.commit()
 
+            # v2.0: 批改后自动更新学生能力模型
             try:
                 from app.services.ability import update_student_ability
-                await update_student_ability(essay_id)
+                await update_student_ability(essay_id, teacher_id=teacher_id)
             except Exception as e:
                 print(f"[WARN] 能力分析更新失败 (essay={essay_id}): {e}")
 

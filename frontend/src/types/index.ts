@@ -34,6 +34,8 @@ export interface Essay {
   status: 'draft' | 'submitted' | 'grading' | 'graded'
   submitted_at: string
   graded_at?: string
+  graded_by?: number
+  grading_requested_at?: string
 }
 
 export interface BasicErrors {
@@ -75,7 +77,29 @@ export interface AIConfig {
   user_id: number
   provider: string
   model_name: string
+  grading_model_name?: string
+  ocr_model_name?: string
   routing_strategy: 'smart' | 'cloud' | 'local'
+  is_active: boolean
+}
+
+// v2.0 types
+export interface OCRConfig {
+  id: number
+  user_id: number
+  model_name: string
+  base_url?: string
+  is_active: boolean
+}
+
+export interface GradingConfig {
+  id: number
+  user_id: number
+  provider: string
+  grading_model_name: string
+  ability_model_name?: string
+  base_url?: string
+  local_endpoint_url?: string
   is_active: boolean
 }
 

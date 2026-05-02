@@ -7,6 +7,7 @@ import Topics from './Topics'
 import EssayView from './EssayView'
 import StudentAbility from './StudentAbility'
 import TeacherSettings from './Settings'
+import GradingQueue from './GradingQueue'
 
 export default function TeacherLayout() {
   return (
@@ -15,6 +16,7 @@ export default function TeacherLayout() {
       <main className="max-w-5xl mx-auto px-4 py-8">
         <Routes>
           <Route path="dashboard" element={<TeacherDashboard />} />
+          <Route path="grading" element={<GradingQueue />} />
           <Route path="classes" element={<ClassList />} />
           <Route path="classes/:id" element={<ClassDetail />} />
           <Route path="topics" element={<Topics />} />

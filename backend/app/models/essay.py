@@ -25,7 +25,10 @@ class Essay(Base):
     status: Mapped[EssayStatus] = mapped_column(SAEnum(EssayStatus), default=EssayStatus.draft)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    graded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    grading_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    student = relationship("User", back_populates="essays")
+    student = relationship("User", back_populates="essays", foreign_keys=[student_id])
+    grader = relationship("User", foreign_keys=[graded_by])
     topic = relationship("EssayTopic", back_populates="essays")
     report = relationship("EssayReport", back_populates="essay", uselist=False)

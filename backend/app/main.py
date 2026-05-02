@@ -17,6 +17,9 @@ async def lifespan(app: FastAPI):
     from app.db import engine, Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # v2.0 数据迁移（幂等）
+    from app.migrations import run_v2_migration
+    await run_v2_migration()
     yield
 
 

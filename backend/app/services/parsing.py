@@ -21,9 +21,9 @@ def parse_image_to_text(image_bytes: bytes) -> str:
     return _parse_image_sync(image_bytes)
 
 
-async def parse_image_to_text_async(image_bytes: bytes) -> str:
-    """异步 OCR —— 在 FastAPI async endpoint 中直接调用"""
-    return await _parse_image_async(image_bytes)
+async def parse_image_to_text_async(image_bytes: bytes, student_id: int = 0) -> str:
+    """v2.0: 异步 OCR —— 使用学生 OCRConfig"""
+    return await _parse_image_async(image_bytes, student_id=student_id)
 
 
 def _parse_docx(content_bytes: bytes) -> str:
@@ -66,11 +66,32 @@ def _compress_if_needed(content_bytes: bytes) -> bytes:
     return content_bytes
 
 
-async def _parse_image_async(content_bytes: bytes) -> str:
-    """异步 OCR —— 智谱 GLM-4V"""
+async def _parse_image_async(content_bytes: bytes, student_id: int = 0) -> str:
+    """v2.0: 异步 OCR —— 优先使用学生 OCRConfig，降级到系统配置"""
     settings = get_settings()
     api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
     ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4.1v-thinking-flash"
+    ocr_base_url = None
+
+    # v2.0: 尝试读取学生 OCR 配置
+    if student_id > 0:
+        try:
+            from app.db import async_session
+            from app.models.ocr_config import OCRConfig
+            async with async_session() as db:
+                config_result = await db.execute(
+                    __import__('sqlalchemy').select(OCRConfig).where(OCRConfig.user_id == student_id)
+                )
+                ocr_config = config_result.scalar_one_or_none()
+                if ocr_config and ocr_config.is_active:
+                    if ocr_config.model_name:
+                        ocr_model = ocr_config.model_name
+                    if ocr_config.api_key_encrypted:
+                        api_key = ocr_config.api_key_encrypted
+                    if ocr_config.base_url:
+                        ocr_base_url = ocr_config.base_url
+        except Exception as e:
+            print(f"[OCR] 读取学生配置失败: {e}")
 
     content_bytes = _compress_if_needed(content_bytes)
     img_b64 = base64.b64encode(content_bytes).decode()
