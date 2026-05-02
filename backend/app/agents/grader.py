@@ -63,11 +63,12 @@ async def run_grader(content: str, topic_info: str = "", teacher_id: int = 0) ->
                 )
                 config = result.scalar_one_or_none()
                 if config and config.is_active:
-                    provider = config.provider.value if isinstance(config.provider, GradingProvider) else config.provider
+                    gp = config.grading_provider
+                    provider = gp.value if isinstance(gp, GradingProvider) else (gp or "zhipu")
                     grading_model = config.grading_model_name or "GLM-4-Flash-250414"
-                    api_key = config.api_key_encrypted or ""
-                    base_url = config.base_url
-                    local_endpoint_url = config.local_endpoint_url
+                    api_key = config.grading_api_key or ""
+                    base_url = config.grading_base_url
+                    local_endpoint_url = config.grading_local_url
         except Exception as e:
             print(f"[GRADER] 读取教师配置失败: {e}")
 

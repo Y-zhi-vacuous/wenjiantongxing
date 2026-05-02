@@ -95,11 +95,14 @@ export interface OCRConfig {
 export interface GradingConfig {
   id: number
   user_id: number
-  provider: string
+  grading_provider: string
   grading_model_name: string
+  grading_base_url?: string
+  grading_local_url?: string
+  ability_provider?: string
   ability_model_name?: string
-  base_url?: string
-  local_endpoint_url?: string
+  ability_base_url?: string
+  ability_local_url?: string
   is_active: boolean
 }
 

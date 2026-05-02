@@ -127,7 +127,7 @@ async def _build_personalized_plan_async(ability, history, all_suggestions, teac
 async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 0):
     """v2.0: 使用教师 GradingConfig + 统一路由层"""
 
-    # 读取教师评分配置
+    # 读取教师评分配置（优先使用能力分析专用配置，否则降级到评分通用配置）
     provider = "zhipu"
     ability_model = "GLM-4-Flash-250414"
     api_key = ""
@@ -142,11 +142,22 @@ async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 
                 )
                 config = config_result.scalar_one_or_none()
                 if config and config.is_active:
-                    provider = config.provider.value if isinstance(config.provider, GradingProvider) else config.provider
-                    ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
-                    api_key = config.api_key_encrypted or ""
-                    base_url = config.base_url
-                    local_endpoint_url = config.local_endpoint_url
+                    # 优先使用能力分析专用配置
+                    if config.ability_provider and config.ability_api_key:
+                        ap = config.ability_provider
+                        provider = ap.value if isinstance(ap, GradingProvider) else (ap or "zhipu")
+                        ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
+                        api_key = config.ability_api_key or ""
+                        base_url = config.ability_base_url
+                        local_endpoint_url = config.ability_local_url
+                    else:
+                        # 降级到评分通用配置
+                        gp = config.grading_provider
+                        provider = gp.value if isinstance(gp, GradingProvider) else (gp or "zhipu")
+                        ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
+                        api_key = config.grading_api_key or ""
+                        base_url = config.grading_base_url
+                        local_endpoint_url = config.grading_local_url
         except Exception as e:
             print(f"[ABILITY] 读取教师配置失败: {e}")
 

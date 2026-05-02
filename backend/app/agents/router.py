@@ -208,19 +208,30 @@ async def test_connection(
     model: str = "",
     base_url: str | None = None,
     local_endpoint_url: str | None = None,
-) -> bool:
-    """测试 AI 连接"""
+) -> tuple[bool, str]:
+    """测试 AI 连接，返回 (是否成功, 详细信息)"""
+    if not api_key and provider not in ("ollama", "vllm"):
+        return False, "未配置 API Key"
+
     try:
         if provider == "ollama":
             url = local_endpoint_url or "http://localhost:11434"
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.get(f"{url.rstrip('/')}/api/tags")
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    data = resp.json()
+                    models = [m.get("name", "") for m in data.get("models", [])]
+                    return True, f"连接成功，可用模型: {', '.join(models[:5])}"
+                return False, f"Ollama 返回 {resp.status_code}: {resp.text[:100]}"
+
         elif provider == "vllm":
             url = local_endpoint_url or "http://localhost:8000"
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.get(f"{url.rstrip('/')}/v1/models")
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    return True, "vLLM 连接成功"
+                return False, f"vLLM 返回 {resp.status_code}: {resp.text[:100]}"
+
         elif provider == "claude":
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(
@@ -228,7 +239,12 @@ async def test_connection(
                     json={"model": model or "claude-sonnet-4-6", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]},
                     headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
                 )
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    return True, "Claude API 连接成功"
+                err = resp.json()
+                msg = err.get("error", {}).get("message", resp.text[:100])
+                return False, f"Claude API 错误: {msg}"
+
         elif provider in ("zhipu", "openai", "deepseek"):
             url = PROVIDER_ENDPOINTS[provider]
             async with httpx.AsyncClient(timeout=10) as client:
@@ -237,8 +253,20 @@ async def test_connection(
                     json={"model": model or "gpt-3.5-turbo", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 5},
                     headers={"Authorization": f"Bearer {api_key}"},
                 )
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    return True, f"{provider} API 连接成功 (model: {model})"
+                data = resp.json()
+                if "error" in data:
+                    msg = data["error"].get("message", str(data))
+                    return False, f"API 返回错误: {msg}"
+                return False, f"HTTP {resp.status_code}: {resp.text[:100]}"
+
         else:
-            return bool(api_key)
-    except Exception:
-        return False
+            return bool(api_key), "已配置 API Key" if api_key else "未配置 API Key"
+
+    except httpx.ConnectError:
+        return False, f"无法连接到服务器，请检查端点地址"
+    except httpx.TimeoutException:
+        return False, "连接超时，请检查网络或服务器状态"
+    except Exception as e:
+        return False, f"连接失败: {str(e)[:100]}"

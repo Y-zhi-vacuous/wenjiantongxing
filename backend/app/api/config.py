@@ -70,14 +70,13 @@ async def test_ocr_connection(
     if not config or not config.api_key_encrypted:
         raise HTTPException(status_code=400, detail="请先配置 OCR 模型")
 
-    # OCR 测试使用 zhipu 协议
-    ok = await test_connection(
+    ok, msg = await test_connection(
         provider="zhipu",
         api_key=config.api_key_encrypted,
         model=config.model_name,
         base_url=config.base_url,
     )
-    return {"success": ok, "message": "连接正常" if ok else "连接失败"}
+    return {"success": ok, "message": msg}
 
 
 # ──────────────────────────────────────────────
@@ -111,15 +110,27 @@ async def update_grading_config(
     if not config:
         config = GradingConfig(user_id=user.id)
         db.add(config)
-    config.provider = GradingProvider(req.provider) if req.provider in [p.value for p in GradingProvider] else GradingProvider.zhipu
+    # 评分模型
+    config.grading_provider = GradingProvider(req.grading_provider) if req.grading_provider in [p.value for p in GradingProvider] else GradingProvider.zhipu
     config.grading_model_name = req.grading_model_name
+    if req.grading_api_key:
+        config.grading_api_key = req.grading_api_key
+    if req.grading_base_url is not None:
+        config.grading_base_url = req.grading_base_url
+    if req.grading_local_url is not None:
+        config.grading_local_url = req.grading_local_url
+    # 能力分析模型
+    if req.ability_provider:
+        config.ability_provider = GradingProvider(req.ability_provider) if req.ability_provider in [p.value for p in GradingProvider] else None
+    else:
+        config.ability_provider = None
     config.ability_model_name = req.ability_model_name
-    if req.api_key:
-        config.api_key_encrypted = req.api_key
-    if req.base_url is not None:
-        config.base_url = req.base_url
-    if req.local_endpoint_url is not None:
-        config.local_endpoint_url = req.local_endpoint_url
+    if req.ability_api_key:
+        config.ability_api_key = req.ability_api_key
+    if req.ability_base_url is not None:
+        config.ability_base_url = req.ability_base_url
+    if req.ability_local_url is not None:
+        config.ability_local_url = req.ability_local_url
     await db.commit()
     await db.refresh(config)
     return GradingConfigResponse.model_validate(config)
@@ -137,15 +148,18 @@ async def test_grading_connection(
     config = result.scalar_one_or_none()
     if not config or not config.is_active:
         raise HTTPException(status_code=400, detail="请先配置评分模型")
+    if not config.grading_api_key:
+        raise HTTPException(status_code=400, detail="请先配置评分模型 API Key")
 
-    ok = await test_connection(
-        provider=config.provider.value,
-        api_key=config.api_key_encrypted or "",
+    provider = config.grading_provider.value if isinstance(config.grading_provider, GradingProvider) else "zhipu"
+    ok, msg = await test_connection(
+        provider=provider,
+        api_key=config.grading_api_key or "",
         model=config.grading_model_name,
-        base_url=config.base_url,
-        local_endpoint_url=config.local_endpoint_url,
+        base_url=config.grading_base_url,
+        local_endpoint_url=config.grading_local_url,
     )
-    return {"success": ok, "message": "连接正常" if ok else "连接失败"}
+    return {"success": ok, "message": msg}
 
 
 # ──────────────────────────────────────────────
@@ -197,9 +211,9 @@ async def test_ai_connection(
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(status_code=400, detail="请先配置 AI")
-    ok = await test_connection(
+    ok, msg = await test_connection(
         provider=config.provider,
         api_key=config.api_key_encrypted or "",
         model=config.model_name,
     )
-    return {"success": ok, "message": "连接正常" if ok else "连接失败"}
+    return {"success": ok, "message": msg}

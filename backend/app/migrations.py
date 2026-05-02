@@ -56,10 +56,11 @@ async def run_v2_migration():
                 if not existing:
                     db.add(GradingConfig(
                         user_id=old.user_id,
-                        provider=old.provider or "zhipu",
+                        grading_provider=old.provider or "zhipu",
                         grading_model_name=old.grading_model_name or "GLM-4-Flash-250414",
+                        grading_api_key=old.api_key_encrypted,
+                        ability_provider=None,
                         ability_model_name=None,
-                        api_key_encrypted=old.api_key_encrypted,
                     ))
                     teacher_count += 1
 

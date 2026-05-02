@@ -112,9 +112,10 @@ async def seed():
         # v2.0: 默认评分配置（教师）
         db.add(GradingConfig(
             user_id=teacher.id,
-            provider="zhipu",
+            grading_provider="zhipu",
             grading_model_name="GLM-4-Flash-250414",
-            ability_model_name="GLM-4-Flash-250414",
+            ability_provider=None,
+            ability_model_name=None,
         ))
 
         for t in SEED_TOPICS:
