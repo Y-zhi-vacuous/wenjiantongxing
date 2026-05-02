@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, Sparkles, AlertTriangle, Lightbulb, FileText } from 'lucide-react'
+import { ArrowLeft, Loader2, Sparkles, AlertTriangle, Lightbulb, FileText, MessageSquare, Send, CheckCircle } from 'lucide-react'
 import api from '../../api/client'
 import type { Essay, EssayReport } from '../../types'
 
@@ -8,6 +8,9 @@ export default function EssayReportPage() {
   const { id } = useParams<{ id: string }>()
   const [essay, setEssay] = useState<Essay | null>(null)
   const [report, setReport] = useState<EssayReport | null>(null)
+  const [feedback, setFeedback] = useState('')
+  const [feedbackSaved, setFeedbackSaved] = useState(false)
+  const [existingFeedback, setExistingFeedback] = useState('')
   const [loading, setLoading] = useState(true)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -20,14 +23,19 @@ export default function EssayReportPage() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [essayRes, reportRes] = await Promise.all([
+      const [essayRes, reportRes, fbRes] = await Promise.all([
         api.get(`/essays/${id}`),
         api.get(`/essays/${id}/report`),
+        api.get(`/essays/${id}/feedback`).catch(() => ({ data: null })),
       ])
       const e = essayRes.data
       const r = reportRes.data
       setEssay(e)
       setReport(r)
+      if (fbRes.data?.comment) {
+        setExistingFeedback(fbRes.data.comment)
+        setFeedback(fbRes.data.comment)
+      }
       setLoading(false)
 
       // 如果正在批改中，启动轮询
@@ -227,6 +235,39 @@ export default function EssayReportPage() {
           再写一篇
         </Link>
       </div>
+
+      {/* v2.1: 学生反馈留言 */}
+      {report && (
+        <div className="bg-white/80 backdrop-blur-xl rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare className="w-5 h-5 text-apple-accent" />
+            <h3 className="font-semibold text-apple-text">对此次评分的反馈</h3>
+          </div>
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-apple-divider bg-[#F2F2F7] text-apple-text placeholder:text-apple-disabled focus:outline-none focus:ring-2 focus:ring-apple-accent/30 resize-none text-sm"
+            rows={3}
+            placeholder="对 AI 评分有什么意见？老师会看到你的反馈..."
+          />
+          <button
+            onClick={async () => {
+              try {
+                await api.post(`/essays/${id}/feedback`, { comment: feedback })
+                setFeedbackSaved(true)
+                setExistingFeedback(feedback)
+                setTimeout(() => setFeedbackSaved(false), 2000)
+              } catch (err: any) {
+                alert(err.response?.data?.detail || '提交失败')
+              }
+            }}
+            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-apple-accent text-white rounded-full text-sm font-medium hover:bg-blue-600 transition-all"
+          >
+            {feedbackSaved ? <CheckCircle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            {feedbackSaved ? '已发送' : existingFeedback ? '更新反馈' : '发送反馈'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

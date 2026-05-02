@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.db import get_db, async_session
-from app.models import User, Essay, EssayStatus, EssayReport
+from app.models import User, Essay, EssayStatus, EssayReport, EssayFeedback
 from app.schemas import EssayCreate, EssayResponse, ReportResponse
 from app.auth import get_current_user
 from app.services.parsing import parse_file_content, parse_image_to_text_async
@@ -145,8 +145,9 @@ async def trigger_grading(
     essay_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    regrade: bool = False,
 ):
-    """v2.0: 教师触发单篇评分"""
+    """v2.1: 教师触发评分（支持重新批改）"""
     if user.role.value != "teacher":
         raise HTTPException(status_code=403, detail=f"仅教师可触发批改（当前角色: {user.role.value}）")
 
@@ -156,6 +157,13 @@ async def trigger_grading(
         raise HTTPException(status_code=404, detail="作文不存在")
     if essay.status == EssayStatus.grading:
         raise HTTPException(status_code=400, detail="该作文正在批改中")
+
+    # 重新批改：删除旧报告
+    if regrade and essay.status == EssayStatus.graded:
+        old = await db.execute(select(EssayReport).where(EssayReport.essay_id == essay_id))
+        old_report = old.scalar_one_or_none()
+        if old_report:
+            await db.delete(old_report)
 
     essay.status = EssayStatus.grading
     essay.grading_requested_at = func.now()
@@ -240,3 +248,71 @@ async def grade_all_ungraded(
     }
 
 
+# ──────────────────────────────────────────────
+# v2.1: 学生评分反馈
+# ──────────────────────────────────────────────
+
+from pydantic import BaseModel
+
+class FeedbackRequest(BaseModel):
+    comment: str
+
+class FeedbackResponse(BaseModel):
+    id: int
+    essay_id: int
+    student_id: int
+    comment: str
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}
+
+
+@router.post("/{essay_id}/feedback")
+async def submit_feedback(
+    essay_id: int,
+    req: FeedbackRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """学生提交对评分结果的留言"""
+    essay = await db.get(Essay, essay_id)
+    if not essay:
+        raise HTTPException(status_code=404, detail="作文不存在")
+    if essay.student_id != user.id:
+        raise HTTPException(status_code=403, detail="仅作文作者可提交反馈")
+
+    result = await db.execute(select(EssayFeedback).where(EssayFeedback.essay_id == essay_id))
+    fb = result.scalar_one_or_none()
+    if not fb:
+        fb = EssayFeedback(essay_id=essay_id, student_id=user.id)
+        db.add(fb)
+    fb.comment = req.comment
+    await db.commit()
+    await db.refresh(fb)
+    return FeedbackResponse(
+        id=fb.id, essay_id=fb.essay_id, student_id=fb.student_id,
+        comment=fb.comment,
+        created_at=str(fb.created_at), updated_at=str(fb.updated_at),
+    )
+
+
+@router.get("/{essay_id}/feedback", response_model=FeedbackResponse | None)
+async def get_feedback(
+    essay_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取作文的评分反馈"""
+    result = await db.execute(select(EssayFeedback).where(EssayFeedback.essay_id == essay_id))
+    fb = result.scalar_one_or_none()
+    if not fb:
+        return None
+    return FeedbackResponse(
+        id=fb.id, essay_id=fb.essay_id, student_id=fb.student_id,
+        comment=fb.comment,
+        created_at=str(fb.created_at), updated_at=str(fb.updated_at),
+    )
+
+
+from sqlalchemy import func

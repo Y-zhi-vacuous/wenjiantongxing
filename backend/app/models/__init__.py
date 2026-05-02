@@ -7,4 +7,5 @@ from app.models.ocr_config import OCRConfig
 from app.models.grading_config import GradingConfig, GradingProvider
 from app.models.class_ import Class, ClassStudent
 from app.models.ability import StudentAbility
+from app.models.feedback import EssayFeedback
 from app.db import Base

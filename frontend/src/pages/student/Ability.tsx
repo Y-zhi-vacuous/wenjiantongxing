@@ -115,13 +115,13 @@ export default function Ability() {
             <TrendingUp className="w-5 h-5 text-apple-accent" />
             <h3 className="font-semibold text-apple-text">分数趋势</h3>
           </div>
-          <div className="flex items-end gap-3 h-32">
+          <div className="flex items-end gap-3 h-40">
             {data.score_history.map((h, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
                 <span className="text-xs font-semibold text-apple-text">{h.total_score}</span>
                 <div
-                  className="w-full bg-apple-accent rounded-t-lg transition-all hover:bg-blue-600"
-                  style={{ height: `${(h.total_score / 50) * 100}%`, minHeight: 8 }}
+                  className="w-full bg-apple-accent rounded-t-lg transition-all hover:bg-blue-600 min-h-[4px]"
+                  style={{ height: `${Math.max((h.total_score / 45) * 100, 4)}%` }}
                 />
                 <span className="text-2xs text-apple-secondary truncate max-w-full" title={h.title}>
                   {h.date?.slice(5)}

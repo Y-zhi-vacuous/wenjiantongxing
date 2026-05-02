@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, FileText, Sparkles, Lightbulb, GraduationCap } from 'lucide-react'
+import { ArrowLeft, Loader2, FileText, Sparkles, Lightbulb, GraduationCap, MessageSquare } from 'lucide-react'
 import api from '../../api/client'
 import type { Essay, EssayReport } from '../../types'
 
@@ -8,6 +8,7 @@ export default function EssayView() {
   const { id } = useParams<{ id: string }>()
   const [essay, setEssay] = useState<Essay | null>(null)
   const [report, setReport] = useState<EssayReport | null>(null)
+  const [studentFeedback, setStudentFeedback] = useState('')
   const [loading, setLoading] = useState(true)
   const [grading, setGrading] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -17,9 +18,11 @@ export default function EssayView() {
     Promise.all([
       api.get(`/essays/${id}`),
       api.get(`/essays/${id}/report`),
-    ]).then(([essayRes, reportRes]) => {
+      api.get(`/essays/${id}/feedback`).catch(() => ({ data: null })),
+    ]).then(([essayRes, reportRes, fbRes]) => {
       setEssay(essayRes.data)
       setReport(reportRes.data)
+      if (fbRes.data?.comment) setStudentFeedback(fbRes.data.comment)
     }).finally(() => setLoading(false))
   }
 
@@ -28,12 +31,12 @@ export default function EssayView() {
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [id])
 
-  const handleGrade = async () => {
+  const doGrade = async (regrade: boolean) => {
     if (!id) return
     setGrading(true)
+    setReport(null)
     try {
-      await api.post(`/essays/${id}/grade`)
-      // Poll for report
+      await api.post(`/essays/${id}/grade${regrade ? '?regrade=true' : ''}`)
       pollingRef.current = setInterval(async () => {
         const { data: essayData } = await api.get(`/essays/${id}`)
         if (essayData.status === 'graded') {
@@ -59,10 +62,17 @@ export default function EssayView() {
           <ArrowLeft className="w-4 h-4" /><span className="text-sm">返回列表</span>
         </Link>
         {(essay.status === 'submitted' || essay.status === 'draft') && (
-          <button onClick={handleGrade} disabled={grading}
+          <button onClick={() => doGrade(false)} disabled={grading}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-apple-accent text-white rounded-full font-medium text-sm hover:bg-blue-600 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20">
             {grading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GraduationCap className="w-4 h-4" />}
             {grading ? '批改中...' : '批改此作文'}
+          </button>
+        )}
+        {essay.status === 'graded' && (
+          <button onClick={() => { if (confirm('重新批改将覆盖原有评分，确定继续？')) doGrade(true) }} disabled={grading}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-apple-accent text-apple-accent rounded-full font-medium text-sm hover:bg-blue-50 transition-all disabled:opacity-50">
+            {grading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GraduationCap className="w-4 h-4" />}
+            {grading ? '重新批改中...' : '重新批改'}
           </button>
         )}
         {essay.status === 'grading' && (
@@ -153,6 +163,20 @@ export default function EssayView() {
                   <p className="text-sm text-apple-text">{s}</p>
                 </div>
               ))}
+            </div>
+          )}
+          {/* 学生反馈 */}
+          {report && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare className="w-5 h-5 text-apple-accent" />
+                <h3 className="font-semibold text-apple-text">学生反馈</h3>
+              </div>
+              {studentFeedback ? (
+                <p className="text-sm text-apple-text leading-relaxed whitespace-pre-wrap">{studentFeedback}</p>
+              ) : (
+                <p className="text-sm text-apple-disabled">学生暂未提交反馈</p>
+              )}
             </div>
           )}
         </>

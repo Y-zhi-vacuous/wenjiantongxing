@@ -75,7 +75,8 @@ async def update_student_ability(essay_id: int, teacher_id: int = 0):
                     all_comments.append(r.overall_comment)
 
         n = len(score_history)
-        ability.overall_score = round(sum(h["total_score"] for h in score_history) / n, 1) if n > 0 else 0
+        # 总分转为百分制 (原始满分45)
+        ability.overall_score = round(sum(h["total_score"] / 45 * 100 for h in score_history) / n, 1) if n > 0 else 0
         ability.essay_count = n
 
         for dim, mx in MAX_SCORES.items():
