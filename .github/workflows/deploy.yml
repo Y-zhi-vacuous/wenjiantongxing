@@ -31,7 +31,7 @@ jobs:
             ${{ steps.tag.outputs.TAG }}
 
   apk:
-    runs-on: ubuntu-24.04
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,13 +51,9 @@ jobs:
 
       - name: Build APK
         working-directory: frontend/android
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-          ls /usr/local/lib/android/sdk/platforms/ 2>/dev/null || echo "no platforms dir"
-          ls /usr/local/lib/android/sdk/build-tools/ 2>/dev/null || echo "no build-tools dir"
-          ./gradlew assembleDebug 2>&1 | tail -30
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew assembleDebug
 
       - name: Upload APK
         if: success()
