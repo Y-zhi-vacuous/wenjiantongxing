@@ -58,7 +58,7 @@ export default function TeacherStudentAbility() {
       <div className="bg-white/80 backdrop-blur-xl rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-8 text-center">
         <div className="text-xs font-semibold text-apple-secondary tracking-wide uppercase mb-2">综合均分</div>
         <div className="text-7xl font-bold text-apple-text tracking-tighter">{data.overall_score}</div>
-        <div className="text-sm text-apple-secondary mt-1">满分 45</div>
+        <div className="text-sm text-apple-secondary mt-1">满分 100</div>
         <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-apple-divider">
           {[
             { label: '内容', score: data.abilities.content, color: '#007AFF' },

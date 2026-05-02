@@ -58,7 +58,7 @@ export default function Ability() {
       <div className="bg-white/80 backdrop-blur-xl rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] p-8 text-center">
         <div className="text-xs font-semibold text-apple-secondary tracking-wide uppercase mb-2">综合均分</div>
         <div className="text-7xl font-bold text-apple-text tracking-tighter">{data.overall_score}</div>
-        <div className="text-sm text-apple-secondary mt-1">满分 50 · 共 {data.essay_count} 篇</div>
+        <div className="text-sm text-apple-secondary mt-1">满分 100 · 共 {data.essay_count} 篇</div>
       </div>
 
       {/* Four Dimensions */}
@@ -120,8 +120,8 @@ export default function Ability() {
               <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
                 <span className="text-xs font-semibold text-apple-text">{h.total_score}</span>
                 <div
-                  className="w-full bg-apple-accent rounded-t-lg transition-all hover:bg-blue-600 min-h-[4px]"
-                  style={{ height: `${Math.max((h.total_score / 45) * 100, 4)}%` }}
+                  className="w-full bg-apple-accent rounded-t-lg transition-all hover:bg-blue-600"
+                  style={{ height: `${Math.max(Number(h.total_score || 0) / 45 * 100, 4)}%`, minHeight: 4 }}
                 />
                 <span className="text-2xs text-apple-secondary truncate max-w-full" title={h.title}>
                   {h.date?.slice(5)}
