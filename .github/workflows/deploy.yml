@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set image tag
         id: tag
-        run: echo "TAG=ghcr.io/y-zhi-vacuous/wenjiantongxing:$(date +%Y%m%d-%H%M%S)-$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
+        run: echo "TAG=ghcr.io/y-zhi-vacuous/wenjiantongxing:sha-$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
