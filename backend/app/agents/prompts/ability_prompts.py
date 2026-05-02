@@ -1,13 +1,15 @@
 """
 能力分析 Prompt 模块 — 学生写作能力画像
 
-v2.0 优化:
-  - 纵向趋势分析: 对比近期与历史表现
-  - 教学建议: 具体可执行的教学改进方案，带时间维度
-  - 错误模式识别: 聚类跨作文的共性错误
+v2.1:
+  - 传入系统实际计算的能力分数，AI 基于真实数据做分析（不自拟分数）
+  - 纵向趋势 + 教学建议 + 错误模式识别
 """
 
-ABILITY_SUMMARY_PROMPT = """你是深圳中考语文教学专家。请基于以下学生的历史作文评分数据和 AI 批改建议，生成一份个性化的写作能力分析报告。
+ABILITY_SUMMARY_PROMPT = """你是深圳中考语文教学专家。请基于以下学生的真实历史数据，生成一份个性化的写作能力分析报告。
+
+## 学生当前能力值（系统计算，请基于此数据做分析）
+{ability_scores}
 
 ## 学生历史评分数据（按时间排列，最近在前）
 {score_data}
@@ -15,50 +17,51 @@ ABILITY_SUMMARY_PROMPT = """你是深圳中考语文教学专家。请基于以�
 ## 学生各篇作文的 AI 批改建议汇总
 {suggestions_text}
 
+## 重要：评分一致性要求
+- dimensions 中的 score 必须使用上面「当前能力值」中系统计算的实际分数，不要自己编
+- 你的任务是基于这些真实分数，给出专业的 assessment 分析和 action_items 改进措施
+
 ## 分析要求
 
 ### 1. 总体评估 (overall_assessment)
-- 80-150字，指出最关键的写作问题和最突出的优点
-- 必须包含纵向对比：与早期作文相比，哪些维度有进步/退步
-- 如果有3篇以上历史作文，分析能力变化趋势
+- 80-150字，基于真实能力值指出最关键问题和最突出优点
+- 必须包含纵向对比：近期 vs 早期作文的进退步
+- 3篇以上历史作文 → 必须分析能力变化趋势
 
-### 2. 五维分析 (dimensions)
-每个维度包含：
-- score: 当前能力值（0-100百分制，基于历史得分加权，近期权重大于早期）
-- assessment: 15-30字的具体分析，必须引用历史数据中的具体表现
-- action_items: 2-3条具体可执行的改进措施（必须是学生能直接操作的，不是空泛建议）
-  格式：每条措施包含"做什么 + 怎么做 + 预期效果"
+### 2. 四维分析 (dimensions)
+每个维度：
+- score: 使用系统提供的实际能力值
+- assessment: 15-30字，结合历史数据中的具体表现进行分析
+- action_items: 2-3条具体可执行的改进措施
 
 ### 3. 优先改进 (priority)
-- 当前最急需改进的1-2个方面（15字以内）
-- 基于该生最薄弱的维度，且必须是对提分最有效的
+- 基于最薄弱的维度，指明对提分最有效的1-2个方面（15字以内）
 
-### 4. 教学建议 (teaching_recommendations) — 给教师的建议
-- immediate_week: 本周即可执行的1个课堂/课后练习（含具体操作说明）
-- short_term_2weeks: 2周内可完成的专项训练计划
-- medium_term_month: 1个月内系统性提升规划
+### 4. 教学建议 (teaching_recommendations)
+- immediate_week: 本周可执行的课堂/课后练习
+- short_term_2weeks: 2周专项训练计划
+- medium_term_month: 1个月系统提升规划
 
-### 5. 共性错误 (error_patterns) — 跨作文的错误模式识别
-- 如果在多篇作文中发现相同类型错误，单独列出
-- 格式: {"pattern": "错误模式描述", "count": 出现次数, "example": "典型例句"}
+### 5. 共性错误 (error_patterns)
+- 跨作文的相同类型错误，含出现次数和典型例句
 
 ## 输出格式
 严格输出 JSON（禁止用 ``` 包裹）：
 {
   "overall_assessment": "总体评价80-150字",
   "dimensions": [
-    {"dimension": "内容能力", "score": 数字(0-100), "assessment": "具体分析15-30字（含立意判断）", "action_items": ["具体可执行的改进措施1", "措施2", "措施3"]},
-    {"dimension": "语言能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
-    {"dimension": "结构能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
-    {"dimension": "文面能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]}
+    {"dimension": "内容能力", "score": 使用系统提供的实际值, "assessment": "15-30字", "action_items": ["措施1", "措施2"]},
+    {"dimension": "语言能力", "score": 使用系统提供的实际值, "assessment": "...", "action_items": ["..."]},
+    {"dimension": "结构能力", "score": 使用系统提供的实际值, "assessment": "...", "action_items": ["..."]},
+    {"dimension": "文面能力", "score": 使用系统提供的实际值, "assessment": "...", "action_items": ["..."]}
   ],
-  "priority": "当前最急需改进的1-2个方面（15字以内）",
+  "priority": "最急需改进的1-2个方面（15字以内）",
   "teaching_recommendations": {
-    "immediate_week": "本周课堂/课后练习方案（15-30字）",
-    "short_term_2weeks": "2周专项训练计划（15-30字）",
-    "medium_term_month": "1个月系统提升规划（15-30字）"
+    "immediate_week": "本周练习方案",
+    "short_term_2weeks": "2周训练计划",
+    "medium_term_month": "1月提升规划"
   },
   "error_patterns": [
-    {"pattern": "共性错误描述", "count": 出现次数, "example": "典型例句片段"}
+    {"pattern": "错误模式", "count": 次数, "example": "例句"}
   ]
 }"""

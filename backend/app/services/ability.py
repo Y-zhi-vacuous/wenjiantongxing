@@ -181,7 +181,17 @@ async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 
             unique_suggestions.append(s)
     suggestions_text = "\n".join(f"- {s}" for s in unique_suggestions[:15])
 
-    prompt = ABILITY_SUMMARY_PROMPT.replace("{score_data}", score_data).replace("{suggestions_text}", suggestions_text)
+    # 传入系统计算的实际能力分数，AI 基于此做分析
+    ability_scores = (
+        f"综合总分: {ability.overall_score}/100\n"
+        f"内容能力: {ability.content_ability}/100 (满分15分制的均分百分比)\n"
+        f"语言能力: {ability.language_ability}/100\n"
+        f"结构能力: {ability.structure_ability}/100\n"
+        f"文面能力: {ability.penmanship_ability}/100\n"
+        f"作文篇数: {ability.essay_count}"
+    )
+
+    prompt = ABILITY_SUMMARY_PROMPT.replace("{ability_scores}", ability_scores).replace("{score_data}", score_data).replace("{suggestions_text}", suggestions_text)
 
     result = await call_llm(
         provider=provider,
