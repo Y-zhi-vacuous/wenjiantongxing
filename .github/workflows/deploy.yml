@@ -31,7 +31,7 @@ jobs:
             ${{ steps.tag.outputs.TAG }}
 
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,18 +49,18 @@ jobs:
           npm run build
           npx cap sync android
 
-      - name: Setup Android SDK
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > frontend/android/local.properties
-          ls $ANDROID_HOME/platforms/android-34 2>/dev/null || {
-            yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-          }
-
       - name: Build APK
         working-directory: frontend/android
-        run: ./gradlew assembleDebug
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+          ls /usr/local/lib/android/sdk/platforms/ 2>/dev/null || echo "no platforms dir"
+          ls /usr/local/lib/android/sdk/build-tools/ 2>/dev/null || echo "no build-tools dir"
+          ./gradlew assembleDebug 2>&1 | tail -30
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: wenjiantongxing-v2.1
