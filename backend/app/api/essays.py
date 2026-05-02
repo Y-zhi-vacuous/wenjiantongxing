@@ -150,6 +150,13 @@ async def trigger_grading(
     if user.role.value != "teacher":
         raise HTTPException(status_code=403, detail=f"仅教师可触发批改（当前角色: {user.role.value}）")
 
+    result = await db.execute(select(Essay).where(Essay.id == essay_id))
+    essay = result.scalar_one_or_none()
+    if not essay:
+        raise HTTPException(status_code=404, detail="作文不存在")
+    if essay.status == EssayStatus.grading:
+        raise HTTPException(status_code=400, detail="该作文正在批改中")
+
     essay.status = EssayStatus.grading
     essay.grading_requested_at = func.now()
     await db.commit()
