@@ -1,11 +1,11 @@
-name: Build and Deploy
+name: Build and Deploy to GHCR
 
 on:
   push:
     branches: [master]
 
 jobs:
-  docker:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,38 +29,3 @@ jobs:
           tags: |
             ghcr.io/y-zhi-vacuous/wenjiantongxing:latest
             ${{ steps.tag.outputs.TAG }}
-
-  apk:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Build frontend and sync Capacitor
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-          npx cap sync android
-
-      - name: Build APK
-        working-directory: frontend/android
-        run: |
-          chmod +x gradlew
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls $ANDROID_HOME/platforms/ 2>/dev/null || echo "No platforms dir"
-          ./gradlew assembleDebug --stacktrace 2>&1 | tail -40
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wenjiantongxing-v2.1
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
