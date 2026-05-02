@@ -55,11 +55,10 @@ export interface EssayReport {
   id: number
   essay_id: number
   total_score: number
-  score_thesis: number
-  score_content: number
-  score_language: number
-  score_structure: number
-  score_penmanship: number
+  score_content: number    // 内容 满分15 (含立意)
+  score_language: number   // 语言 满分15
+  score_structure: number  // 结构 满分10
+  score_penmanship: number // 文面 满分5
   topic_match?: string
   level?: string
   deduction_reason?: string

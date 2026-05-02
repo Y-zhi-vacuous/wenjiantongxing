@@ -136,7 +136,6 @@ def _format_ability(ability, display_name: str) -> dict:
         "overall_score": ability.overall_score,
         "essay_count": ability.essay_count,
         "abilities": {
-            "thesis": ability.thesis_ability,
             "content": ability.content_ability,
             "language": ability.language_ability,
             "structure": ability.structure_ability,

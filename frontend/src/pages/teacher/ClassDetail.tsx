@@ -185,7 +185,6 @@ export default function ClassDetail() {
                 <div className="mt-3 pt-3 border-t border-apple-divider">
                   <div className="grid grid-cols-4 gap-4 text-center">
                     {[
-                      { label: '立意', value: s.ability.abilities?.thesis, color: '#FF3B30' },
                       { label: '内容', value: s.ability.abilities?.content, color: '#007AFF' },
                       { label: '语言', value: s.ability.abilities?.language, color: '#34C759' },
                       { label: '结构', value: s.ability.abilities?.structure, color: '#FF9500' },

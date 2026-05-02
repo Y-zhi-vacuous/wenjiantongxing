@@ -33,7 +33,7 @@ async def grade_essay(essay_id: int, teacher_id: int = 0):
             if "[手写作文" in content and "OCR" in content:
                 report = EssayReport(
                     essay_id=essay.id, total_score=0,
-                    score_thesis=0, score_content=0, score_language=0,
+                    score_content=0, score_language=0,
                     score_structure=0, score_penmanship=0,
                     topic_match="无法判定", level="系统判定",
                     overall_comment="OCR 识别失败，无法批改。请确认图片清晰度后重新上传。",
@@ -49,8 +49,8 @@ async def grade_essay(essay_id: int, teacher_id: int = 0):
             if len(content) < 100:
                 report = EssayReport(
                     essay_id=essay.id, total_score=5,
-                    score_thesis=1, score_content=2, score_language=1,
-                    score_structure=1, score_penmanship=0,
+                    score_content=2, score_language=1,
+                    score_structure=1, score_penmanship=1,
                     topic_match="字数不足", level="六类文",
                     deduction_reason="字数不足100字",
                     word_count_actual=len(content),
@@ -77,36 +77,34 @@ async def grade_essay(essay_id: int, teacher_id: int = 0):
 
             report_data = await run_grader(content, topic_info=topic_info, teacher_id=teacher_id)
 
-            # 分数上限保护
+            # 分数上限保护 — v2.1 四维: 内容15/语言15/结构10/文面5
             def clamp(v, mx):
                 return max(0, min(float(v or 0), float(mx)))
 
-            thesis = clamp(report_data.get("score_thesis", 0), 10)
             content_s = clamp(report_data.get("score_content", 0), 15)
-            lang = clamp(report_data.get("score_language", 0), 10)
-            struct = clamp(report_data.get("score_structure", 0), 5)
+            lang = clamp(report_data.get("score_language", 0), 15)
+            struct = clamp(report_data.get("score_structure", 0), 10)
             pen = clamp(report_data.get("score_penmanship", 0), 5)
 
-            # 切题判定直接影响总分
+            # 切题判定直接影响总分和内容分
             topic_match = report_data.get("topic_match", "")
             if topic_match == "完全离题":
-                thesis = min(thesis, 2)
-                total = min(thesis + content_s + lang + struct + pen, 10)
+                content_s = min(content_s, 3)
+                total = min(content_s + lang + struct + pen, 10)
             elif topic_match == "部分偏题":
-                thesis = min(thesis, 5)
-                total = min(thesis + content_s + lang + struct + pen, 29)
+                content_s = min(content_s, 6)
+                total = min(content_s + lang + struct + pen, 25)
             else:
                 total = clamp(report_data.get("total_score", 0), 45)
 
-            # 五项和校验
-            real_sum = thesis + content_s + lang + struct + pen
+            # 四项和校验
+            real_sum = content_s + lang + struct + pen
             if abs(total - real_sum) > 2:
                 total = real_sum
 
             report = EssayReport(
                 essay_id=essay.id,
                 total_score=total,
-                score_thesis=thesis,
                 score_content=content_s,
                 score_language=lang,
                 score_structure=struct,

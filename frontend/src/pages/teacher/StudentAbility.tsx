@@ -8,7 +8,7 @@ interface AbilityData {
   display_name: string
   overall_score: number
   essay_count: number
-  abilities: { thesis: number; content: number; language: number; structure: number; penmanship: number }
+  abilities: { content: number; language: number; structure: number; penmanship: number }
   score_history: { essay_id: number; date: string; title: string; total_score: number; content: number; language: number; structure: number; penmanship: number }[]
   strengths: string[]
   weaknesses: string[]
@@ -61,7 +61,6 @@ export default function TeacherStudentAbility() {
         <div className="text-sm text-apple-secondary mt-1">满分 45</div>
         <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-apple-divider">
           {[
-            { label: '立意', score: data.abilities.thesis, color: '#FF3B30' },
             { label: '内容', score: data.abilities.content, color: '#007AFF' },
             { label: '语言', score: data.abilities.language, color: '#34C759' },
             { label: '结构', score: data.abilities.structure, color: '#FF9500' },

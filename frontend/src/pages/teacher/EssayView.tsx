@@ -106,10 +106,9 @@ export default function EssayView() {
             )}
             <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-apple-divider">
               {[
-                { label: '立意 / 10', value: report.score_thesis },
                 { label: '内容 / 15', value: report.score_content },
-                { label: '语言 / 10', value: report.score_language },
-                { label: '结构 / 5', value: report.score_structure },
+                { label: '语言 / 15', value: report.score_language },
+                { label: '结构 / 10', value: report.score_structure },
                 { label: '文面 / 5', value: report.score_penmanship },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center">

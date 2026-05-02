@@ -41,11 +41,10 @@ class ReportResponse(BaseModel):
     id: int
     essay_id: int
     total_score: float
-    score_thesis: float
-    score_content: float
-    score_language: float
-    score_structure: float
-    score_penmanship: float
+    score_content: float    # 内容 满分15 (含立意)
+    score_language: float   # 语言 满分15
+    score_structure: float  # 结构 满分10
+    score_penmanship: float # 文面 满分5
     topic_match: str | None = None
     level: str | None = None
     deduction_reason: str | None = None

@@ -47,8 +47,7 @@ ABILITY_SUMMARY_PROMPT = """你是深圳中考语文教学专家。请基于以�
 {
   "overall_assessment": "总体评价80-150字",
   "dimensions": [
-    {"dimension": "立意能力", "score": 数字(0-100), "assessment": "具体分析15-30字", "action_items": ["具体可执行的改进措施1", "措施2", "措施3"]},
-    {"dimension": "内容能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
+    {"dimension": "内容能力", "score": 数字(0-100), "assessment": "具体分析15-30字（含立意判断）", "action_items": ["具体可执行的改进措施1", "措施2", "措施3"]},
     {"dimension": "语言能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
     {"dimension": "结构能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]},
     {"dimension": "文面能力", "score": 数字(0-100), "assessment": "...", "action_items": ["..."]}

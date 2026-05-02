@@ -133,10 +133,9 @@ export default function EssayReportPage() {
         )}
         <div className="flex justify-center gap-6 mt-6 pt-6 border-t border-apple-divider">
           {[
-            { label: '立意 / 10', value: report.score_thesis ?? 0, color: '#007AFF' },
-            { label: '内容 / 15', value: report.score_content, color: '#34C759' },
-            { label: '语言 / 10', value: report.score_language, color: '#FF9500' },
-            { label: '结构 / 5', value: report.score_structure, color: '#AF52DE' },
+            { label: '内容 / 15', value: report.score_content ?? 0, color: '#007AFF' },
+            { label: '语言 / 15', value: report.score_language, color: '#34C759' },
+            { label: '结构 / 10', value: report.score_structure, color: '#AF52DE' },
             { label: '文面 / 5', value: report.score_penmanship, color: '#FF3B30' },
           ].map(({ label, value, color }) => (
             <div key={label} className="text-center">

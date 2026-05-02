@@ -17,10 +17,9 @@ from app.agents.router import call_llm
 
 
 MAX_SCORES = {
-    "thesis": 10,
     "content": 15,
-    "language": 10,
-    "structure": 5,
+    "language": 15,
+    "structure": 10,
     "penmanship": 5,
 }
 
@@ -65,7 +64,6 @@ async def update_student_ability(essay_id: int, teacher_id: int = 0):
                     "date": str(e.submitted_at.date()) if e.submitted_at else "",
                     "title": e.title,
                     "total_score": r.total_score,
-                    "thesis": r.score_thesis,
                     "content": r.score_content,
                     "language": r.score_language,
                     "structure": r.score_structure,
@@ -87,7 +85,6 @@ async def update_student_ability(essay_id: int, teacher_id: int = 0):
         ability.score_history = score_history
 
         dims = [
-            ("立意能力", ability.thesis_ability),
             ("内容能力", ability.content_ability),
             ("语言能力", ability.language_ability),
             ("结构能力", ability.structure_ability),
@@ -170,7 +167,7 @@ async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 
     score_lines = []
     for h in history[-5:]:
         score_lines.append(
-            f"- {h['date']} 《{h['title']}》: 总分{h['total_score']}(立意{h['thesis']}/内容{h['content']}/语言{h['language']}/结构{h['structure']}/文面{h['penmanship']})"
+            f"- {h['date']} 《{h['title']}》: 总分{h['total_score']}(内容{h['content']}/语言{h['language']}/结构{h['structure']}/文面{h['penmanship']})"
         )
     score_data = "\n".join(score_lines) if score_lines else "暂无数据"
 
@@ -279,10 +276,9 @@ async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 
 def _build_keyword_plan(ability, history, all_suggestions) -> list:
     """降级方案：关键词匹配"""
     plans = []
-    dim_map = {"立意能力": "thesis", "内容能力": "content", "语言能力": "language", "结构能力": "structure", "文面能力": "penmanship"}
+    dim_map = {"内容能力": "content", "语言能力": "language", "结构能力": "structure", "文面能力": "penmanship"}
     dim_keywords = {
-        "立意能力": ["立意", "审题", "主题", "切题", "偏题", "离题", "角度", "观点", "核心"],
-        "内容能力": ["内容", "素材", "细节", "描写", "选材", "事例", "具体", "空泛", "详略"],
+        "内容能力": ["内容", "素材", "细节", "描写", "选材", "立意", "审题", "主题", "切题", "偏题", "离题", "具体", "空泛", "详略"],
         "语言能力": ["语言", "表达", "修辞", "文采", "流畅", "生动", "通顺"],
         "结构能力": ["结构", "开头", "结尾", "过渡", "段落", "层次", "呼应", "条理"],
         "文面能力": ["卷面", "标点", "错别字", "书写", "字数", "格式", "规范"],
@@ -321,8 +317,7 @@ def _score_to_level(score: float) -> str:
 
 def _fallback_tip(dim_name: str) -> str:
     tips = {
-        "立意能力": "每次写作前花2分钟审题，圈出题目关键词，确保文章围绕核心主题展开",
-        "内容能力": "用具体事例和感官细节替代概括性叙述",
+        "内容能力": "写前花2分钟审题立意，用具体事例和细节替代概括性叙述，确保作文围绕核心主题展开",
         "语言能力": "每段使用至少一种修辞手法增强表达力",
         "结构能力": "动笔前列3-5点提纲保证结构完整",
         "文面能力": "写完后通读检查标点和错别字",
