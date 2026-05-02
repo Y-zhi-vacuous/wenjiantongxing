@@ -52,8 +52,11 @@ jobs:
       - name: Build APK
         working-directory: frontend/android
         run: |
+          chmod +x gradlew
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ./gradlew assembleDebug
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls $ANDROID_HOME/platforms/ 2>/dev/null || echo "No platforms dir"
+          ./gradlew assembleDebug --stacktrace 2>&1 | tail -40
 
       - name: Upload APK
         if: success()
