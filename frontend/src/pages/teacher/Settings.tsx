@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Save, CheckCircle, Zap, Wifi, Globe } from 'lucide-react'
+import { Save, CheckCircle, Wifi } from 'lucide-react'
 import api from '../../api/client'
-import type { GradingConfig } from '../../types'
 
 const PROVIDERS = [
   { value: 'zhipu', label: '智谱 GLM (推荐)' },

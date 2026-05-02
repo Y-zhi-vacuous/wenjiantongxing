@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, FileText, GraduationCap, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Loader2, FileText, CheckCircle2, AlertCircle } from 'lucide-react'
 import api from '../../api/client'
 import type { Essay } from '../../types'
 

@@ -27,27 +27,23 @@ export default function WriteEssay() {
     if (!selectedTopic) return
     setLoading(true)
     try {
-      let essayId: number
       if (tab === 'write') {
-        const { data } = await api.post('/essays', { topic_id: selectedTopic, title: title || '未命名', content })
-        essayId = data.id
+        await api.post('/essays', { topic_id: selectedTopic, title: title || '未命名', content })
       } else if (tab === 'image' && file) {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('topic_id', String(selectedTopic))
         formData.append('title', title || '手写作文-' + file.name)
-        const { data } = await api.post('/essays/upload-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-        essayId = data.id
+        await api.post('/essays/upload-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
       } else if (file) {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('topic_id', String(selectedTopic))
         formData.append('title', title || file.name.replace(/\.[^.]+$/, ''))
-        const { data } = await api.post('/essays/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-        essayId = data.id
+        await api.post('/essays/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
       } else return
       // v2.0: 不再自动触发批改，改为教师端批改
-      navigate(`/student/history`)
+      navigate('/student/history')
     } finally { setLoading(false) }
   }
 
