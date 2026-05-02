@@ -191,16 +191,16 @@ def _parse_ai_response(text: str, model: str) -> dict:
                 pass
 
     print(f"[GRADER] JSON解析失败！AI原始输出前500字:\n{text[:500]}")
+    error_detail = text[:200] if text else "AI 未返回任何内容，请检查 API 连接或模型名称是否正确"
     return {
         "level": "六类文",
         "topic_match": "无法判定",
         "total_score": 0,
-        "score_thesis": 0,
         "score_content": 0,
         "score_language": 0,
         "score_structure": 0,
         "score_penmanship": 0,
-        "overall_comment": f"批改系统异常：AI返回格式错误，请联系管理员。原始输出: {text[:200]}",
-        "suggestions": ["请重新提交作文进行批改"],
+        "overall_comment": f"批改系统异常：AI返回格式错误。{error_detail}",
+        "suggestions": ["请重新提交作文进行批改", "如持续出现此问题，请检查 AI 配置或联系管理员"],
         "model_used": model,
     }

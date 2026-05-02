@@ -4,6 +4,7 @@
 支持 6 个提供商: Zhipu / OpenAI / DeepSeek / Claude / Ollama / vLLM
 统一接口 call_llm() 处理所有 LLM 调用，自动转换消息格式。
 """
+import json
 import httpx
 from app.models.grading_config import GradingProvider
 
@@ -100,7 +101,11 @@ async def _call_openai_compatible(
                 data = resp.json()
                 if "choices" in data and data["choices"]:
                     choice = data["choices"][0]
-                    content = choice.get("message", {}).get("content", "")
+                    msg = choice.get("message", {})
+                    content = msg.get("content", "") or msg.get("reasoning_content", "")
+                    if not content:
+                        print(f"[LLM] 警告: API 返回空内容, choice keys={list(choice.keys())}, msg keys={list(msg.keys())}")
+                        print(f"[LLM] 完整响应前500字: {json.dumps(data, ensure_ascii=False)[:500]}")
                     return {
                         "content": content.strip(),
                         "model": data.get("model", model),
@@ -108,7 +113,12 @@ async def _call_openai_compatible(
                     }
                 if "error" in data:
                     last_error = data["error"].get("message", str(data))
+                    print(f"[LLM] API 返回错误: {last_error}")
                     break
+                # 既无 choices 也无 error — 记录完整响应
+                print(f"[LLM] 意外的 API 响应: {json.dumps(data, ensure_ascii=False)[:500]}")
+                last_error = f"API 返回异常: {json.dumps(data, ensure_ascii=False)[:200]}"
+                break
         except httpx.TimeoutException:
             last_error = f"请求超时 ({timeout}s)"
         except Exception as e:
