@@ -19,3 +19,5 @@ Thumbs.db
 .claude/
 .codeartsdoer/
 flyctl.exe
+output/
+*.xlsx
