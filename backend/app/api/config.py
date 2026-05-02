@@ -156,18 +156,28 @@ async def test_grading_connection(
     config = result.scalar_one_or_none()
     if not config or not config.is_active:
         raise HTTPException(status_code=400, detail="请先配置评分模型")
-    # 向下兼容：新字段为空时回退到旧字段
-    api_key = config.grading_api_key or config.api_key_encrypted or ""
-    if not api_key:
-        raise HTTPException(status_code=400, detail="请先配置评分模型 API Key")
-
-    provider = config.grading_provider.value if isinstance(config.grading_provider, GradingProvider) else "zhipu"
+    # use_default=True → 使用系统内置 Key
+    if config.grading_use_default:
+        from app.config import get_settings
+        api_key = get_settings().AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+        provider = "zhipu"
+        model = "GLM-4-Flash-250414"
+        base_url = None
+        local_url = None
+    else:
+        api_key = config.grading_api_key or config.api_key_encrypted or ""
+        if not api_key:
+            raise HTTPException(status_code=400, detail="请取消勾选「默认」并配置 API Key，或使用系统默认模型")
+        provider = config.grading_provider.value if isinstance(config.grading_provider, GradingProvider) else "zhipu"
+        model = config.grading_model_name
+        base_url = config.grading_base_url or config.base_url
+        local_url = config.grading_local_url or config.local_endpoint_url
     ok, msg = await test_connection(
         provider=provider,
         api_key=api_key,
-        model=config.grading_model_name,
-        base_url=config.grading_base_url or config.base_url,
-        local_endpoint_url=config.grading_local_url or config.local_endpoint_url,
+        model=model,
+        base_url=base_url,
+        local_endpoint_url=local_url,
     )
     return {"success": ok, "message": msg}
 
