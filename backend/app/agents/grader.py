@@ -14,14 +14,21 @@ GRADER_PROMPT = """你是深圳中考语文阅卷老师。批改前必须完成�
 ## ⚠️ 第一步：审题匹配检查（必须最先完成）
 
 {topic_info}
-请仔细阅读上面的题目和写作要求，然后判断学生作文是否切合题目：
-- **完全离题**：作文内容与题目毫无关系（如题目要求写"风景变化"，学生写了完全无关的主题）
-- **部分偏题**：作文触及了题目但大量内容偏离主题
-- **基本切题**：作文大体围绕题目展开，偶有偏离
-- **切题**：作文紧扣题目要求
+请仔细阅读上面的题目和写作要求，然后判断学生作文是否切合题目。
+判断标准：作文的**核心主题**必须与题目要求一致，不能仅凭文中出现的关键词判断。
 
-**离题示例**：题目为"见证美好"，学生写"我的游戏攻略" → 完全离题。
-**偏题示例**：题目为"看，风景在变"，学生大篇幅写个人内心感悟，仅开头提到风景 → 部分偏题。
+- **完全离题**：核心主题与题目完全无关
+- **部分偏题**：开头或局部涉及题目，但核心主题偏离（如题目要求写"风景变化"，作文前两段写景后全部转为内心感悟，风景只是引子而非主线）
+- **基本切题**：核心主题与题目相关，偶有局部偏离
+- **切题**：全文核心紧扣题目
+
+**偏题判断示例**：
+- 题目"看，风景在变"→ 学生写海边日落→月光→感悟"我是自己的星光"→ **部分偏题**（海边景色只是引子，核心是自我发现，未围绕"风景变化"展开）
+- 题目"见证美好"→ 学生写目睹陌生人拾金不昧→ **切题**
+- 题目"因为有我"→ 学生写自己组织班级活动→ **切题**
+- 题目"我的动力源"→ 学生写喜欢打游戏→ **完全离题**（除非能论证游戏如何成为积极动力）
+
+**关键原则**：如果去掉题目中的关键词，作文的核心内容是否依然成立？如果是，说明该关键词并未主导全文，应判偏题。
 
 ### 强制规则
 1. 完全离题 → 立意≤2，总分≤10，判六类文，无需详细批改
@@ -117,15 +124,31 @@ MOCK_REPORT = {
 }
 
 
+TOPIC_CHECK_PROMPT = """你是一个审题判断工具。请严格对比以下作文题目和学生作文，只输出一个词。
+
+题目要求：
+{topic_info}
+
+学生作文核心内容（前800字）：
+{content}
+
+请判断：
+- 如果作文核心主题与题目要求一致，只输出：切题
+- 如果作文只是开头或局部提到题目关键词，但核心内容转向其他主题（如题目要求写"风景变化"却写成内心感悟"做自己的星光"），只输出：偏题
+- 如果作文与题目完全无关，只输出：离题
+
+注意：关键看核心主题。如果去掉作文里与题目相关的几个词，作文主题不变，那就是偏题。
+
+只输出一个词（切题/偏题/离题），不要任何解释。"""
+
+
 async def run_grader(content: str, topic_info: str = "", user_id: int = 0) -> dict:
-    """执行批改。topic_info 包含作文题目、审题提示、写作要求"""
+    """两步批改：先独立判切题，再评分，最后强制注入切题判定"""
 
     from app.config import get_settings
     settings = get_settings()
-
-    # 优先读取用户配置，否则用系统默认
     provider = settings.AI_PROVIDER or "zhipu"
-    model_name = settings.AI_GRADING_MODEL or "GLM-4-Flash-250414"
+    grading_model = settings.AI_GRADING_MODEL or "GLM-4-Flash-250414"
     api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
 
     if user_id > 0:
@@ -135,21 +158,59 @@ async def run_grader(content: str, topic_info: str = "", user_id: int = 0) -> di
                 config = result.scalar_one_or_none()
                 if config and config.api_key_encrypted:
                     provider = config.provider
-                    model_name = config.grading_model_name or "GLM-4-Flash-250414"
+                    grading_model = config.grading_model_name or "GLM-4-Flash-250414"
                     api_key = config.api_key_encrypted
         except Exception:
             pass
 
+    # 第一步：独立 API 判断切题
+    topic_match = "切题"
+    if topic_info:
+        topic_match = await _check_topic_match(content, topic_info, api_key)
+
+    # 第二步：主评分（注入切题判定）
     if provider == "zhipu":
-        return await _call_zhipu(content, topic_info, model_name, api_key)
+        result = await _call_zhipu(content, topic_info, topic_match, grading_model, api_key)
     else:
-        return await _call_openai_compatible(content, topic_info, model_name, api_key, provider)
+        result = await _call_openai_compatible(content, topic_info, topic_match, grading_model, api_key, provider)
+
+    result["topic_match"] = topic_match
+    return result
 
 
-async def _call_zhipu(content: str, topic_info: str, model: str, api_key: str) -> dict:
+async def _check_topic_match(content: str, topic_info: str, api_key: str) -> str:
+    """专用 API 调用，仅判断切题"""
+    import httpx
+    prompt = TOPIC_CHECK_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:800])
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+            json={
+                "model": "GLM-4-Flash-250414",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.0,
+                "max_tokens": 10,
+            },
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        data = resp.json()
+        if "choices" in data:
+            answer = data["choices"][0]["message"]["content"].strip()
+            print(f"[TOPIC_CHECK] 原始输出: '{answer}'")
+            if "偏题" in answer or "离题" in answer:
+                return "部分偏题" if "偏" in answer else "完全离题"
+            if "切题" in answer:
+                return "切题"
+        print(f"[TOPIC_CHECK] 无法解析，默认切题")
+        return "切题"
+
+
+async def _call_zhipu(content: str, topic_info: str, topic_match: str, model: str, api_key: str) -> dict:
     """调用智谱 GLM API 批改"""
     url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     prompt = GRADER_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:3000])
+    prompt = prompt.replace("请批改：", f"【系统已判定：{topic_match}，请基于此判定进行评分】\n请批改：")
 
     async with httpx.AsyncClient(timeout=90) as client:
         resp = await client.post(url, json={
@@ -174,7 +235,7 @@ async def _call_zhipu(content: str, topic_info: str, model: str, api_key: str) -
         return _parse_ai_response(text, model)
 
 
-async def _call_openai_compatible(content: str, topic_info: str, model: str, api_key: str, provider: str) -> dict:
+async def _call_openai_compatible(content: str, topic_info: str, topic_match: str, model: str, api_key: str, provider: str) -> dict:
     """调用 OpenAI 兼容 API"""
     base_urls = {
         "openai": "https://api.openai.com/v1/chat/completions",
@@ -182,6 +243,7 @@ async def _call_openai_compatible(content: str, topic_info: str, model: str, api
     }
     url = base_urls.get(provider, "https://api.openai.com/v1/chat/completions")
     prompt = GRADER_PROMPT.replace("{topic_info}", topic_info).replace("{content}", content[:3000])
+    prompt = prompt.replace("请批改：", f"【系统已判定：{topic_match}，请基于此判定进行评分】\n请批改：")
 
     async with httpx.AsyncClient(timeout=90) as client:
         resp = await client.post(url, json={
