@@ -206,8 +206,10 @@ async def _call_openai_compatible(content: str, topic_info: str, model: str, api
 
 
 def _parse_ai_response(text: str, model: str) -> dict:
-    """解析 AI 返回的 JSON"""
+    """解析 AI 返回的 JSON。解析失败时记录原始输出并返回错误标记"""
     text = text.strip()
+
+    # 去除 markdown 代码块
     if text.startswith("```"):
         lines = text.split("\n")
         text = "\n".join(lines[1:]) if len(lines) > 1 else text
@@ -228,4 +230,19 @@ def _parse_ai_response(text: str, model: str) -> dict:
                 return result
             except json.JSONDecodeError:
                 pass
-        return MOCK_REPORT
+
+    # 解析失败：记录原始输出，返回零分报告（不静默兜底）
+    print(f"[GRADER] JSON解析失败！AI原始输出前500字:\n{text[:500]}")
+    return {
+        "level": "六类文",
+        "topic_match": "无法判定",
+        "total_score": 0,
+        "score_thesis": 0,
+        "score_content": 0,
+        "score_language": 0,
+        "score_structure": 0,
+        "score_penmanship": 0,
+        "overall_comment": f"批改系统异常：AI返回格式错误，请联系管理员。原始输出: {text[:200]}",
+        "suggestions": ["请重新提交作文进行批改"],
+        "model_used": model,
+    }
