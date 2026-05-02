@@ -4,10 +4,11 @@
 - 深圳市官方四维评分标准 (15+15+10+5=45)
 - 能力画像 100 分制，AI 使用系统计算分数（不自拟）
 - 教师重新批改 + 学生反馈留言
+- APK v2.1 已构建 (SDK 36, Capacitor 8)
 - 公网: `https://wppyqjhwlqso.usw-1.sealos.app`
 
 ## 技术栈
-React 18 + FastAPI + SQLite + call_llm(6 providers) + GLM-4V OCR
+React 18 + FastAPI + SQLite + call_llm(6 providers) + GLM-4V OCR + Capacitor 8
 
 ## 评分体系演进
 
@@ -43,3 +44,4 @@ React 18 + FastAPI + SQLite + call_llm(6 providers) + GLM-4V OCR
 | AI 返回空内容 | reasoning_content 回退+日志 |
 | 图表高度错误 | /50→/45, Number()转换 |
 | 能力分数不一致 | 传入系统计算值, AI 不自拟 |
+| APK 构建失败 | compileSdk 36 + androidx 依赖 |

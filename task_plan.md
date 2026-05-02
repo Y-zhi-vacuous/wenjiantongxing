@@ -1,7 +1,7 @@
 # Task Plan: 文鉴同行 v2.1
 
 ## 当前状态
-v2.1 — 深圳市官方四维评分标准，能力画像 100 分制。公网 `wppyqjhwlqso.usw-1.sealos.app`
+v2.1 — 深圳市官方四维评分标准，能力画像 100 分制，APK 已构建。公网 `wppyqjhwlqso.usw-1.sealos.app`
 
 ## v2.0 完成 ✅
 - 学生/教师分离，OCR 学生端 + 评分能力教师端
@@ -21,6 +21,7 @@ v2.1 — 深圳市官方四维评分标准，能力画像 100 分制。公网 `w
 - 能力画像 100 分制: 综合均分/四维能力值百分制
 - 能力 AI 使用系统计算分数 (不自行编造)
 - 前端 4 维度适配 + 图表修复
+- APK v2.1 构建
 
 ## Architecture
 ```
@@ -32,4 +33,6 @@ FastAPI (Docker → GHCR → Sealos)
     ├── OCRConfig → GLM-4V
     ├── GradingConfig → call_llm → 6 providers (评分+能力)
     └── EssayFeedback (学生留言)
+
+Android APK (Capacitor 8)
 ```
