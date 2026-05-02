@@ -142,29 +142,29 @@ async def _call_ability_ai(ability, history, all_suggestions, teacher_id: int = 
                 )
                 config = config_result.scalar_one_or_none()
                 if config and config.is_active:
-                    # 优先使用能力分析专用配置
-                    if config.ability_provider and config.ability_api_key:
-                        ap = config.ability_provider
-                        provider = ap.value if isinstance(ap, GradingProvider) else (ap or "zhipu")
-                        ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
-                        api_key = config.ability_api_key or ""
-                        base_url = config.ability_base_url
-                        local_endpoint_url = config.ability_local_url
-                    else:
-                        # 降级到评分通用配置
-                        gp = config.grading_provider
-                        provider = gp.value if isinstance(gp, GradingProvider) else (gp or "zhipu")
-                        ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
-                        api_key = config.grading_api_key or ""
-                        base_url = config.grading_base_url
-                        local_endpoint_url = config.grading_local_url
+                    if not config.ability_use_default:
+                        # 使用自定义能力分析配置
+                        if config.ability_provider and config.ability_api_key:
+                            ap = config.ability_provider
+                            provider = ap.value if isinstance(ap, GradingProvider) else (ap or "zhipu")
+                            ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
+                            api_key = config.ability_api_key or ""
+                            base_url = config.ability_base_url
+                            local_endpoint_url = config.ability_local_url
+                        else:
+                            # 降级到评分自定义配置
+                            gp = config.grading_provider
+                            provider = gp.value if isinstance(gp, GradingProvider) else (gp or "zhipu")
+                            ability_model = config.ability_model_name or config.grading_model_name or "GLM-4-Flash-250414"
+                            api_key = config.grading_api_key or config.api_key_encrypted or ""
+                            base_url = config.grading_base_url or config.base_url
+                            local_endpoint_url = config.grading_local_url or config.local_endpoint_url
         except Exception as e:
             print(f"[ABILITY] 读取教师配置失败: {e}")
 
     if not api_key:
         from app.config import get_settings
-        settings = get_settings()
-        api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+        api_key = get_settings().AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
 
     # 构造分数数据
     score_lines = []

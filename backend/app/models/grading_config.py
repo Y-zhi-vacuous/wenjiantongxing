@@ -27,6 +27,7 @@ class GradingConfig(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False, index=True)
 
     # 评分模型配置
+    grading_use_default: Mapped[bool] = mapped_column(Boolean, default=True)
     grading_provider: Mapped[GradingProvider] = mapped_column(SAEnum(GradingProvider), default=GradingProvider.zhipu)
     grading_model_name: Mapped[str] = mapped_column(String(64), default="GLM-4-Flash-250414")
     grading_api_key: Mapped[str | None] = mapped_column(String(512))
@@ -34,6 +35,7 @@ class GradingConfig(Base):
     grading_local_url: Mapped[str | None] = mapped_column(String(256))
 
     # 能力分析模型配置（独立，可选不同于评分模型的提供商）
+    ability_use_default: Mapped[bool] = mapped_column(Boolean, default=True)
     ability_provider: Mapped[GradingProvider | None] = mapped_column(SAEnum(GradingProvider), nullable=True)
     ability_model_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ability_api_key: Mapped[str | None] = mapped_column(String(512))

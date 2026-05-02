@@ -63,19 +63,21 @@ async def run_grader(content: str, topic_info: str = "", teacher_id: int = 0) ->
                 )
                 config = result.scalar_one_or_none()
                 if config and config.is_active:
-                    gp = config.grading_provider
-                    provider = gp.value if isinstance(gp, GradingProvider) else (gp or "zhipu")
-                    grading_model = config.grading_model_name or "GLM-4-Flash-250414"
-                    api_key = config.grading_api_key or ""
-                    base_url = config.grading_base_url
-                    local_endpoint_url = config.grading_local_url
+                    if not config.grading_use_default:
+                        # 使用自定义配置
+                        gp = config.grading_provider
+                        provider = gp.value if isinstance(gp, GradingProvider) else (gp or "zhipu")
+                        grading_model = config.grading_model_name or "GLM-4-Flash-250414"
+                        api_key = config.grading_api_key or config.api_key_encrypted or ""
+                        base_url = config.grading_base_url or config.base_url
+                        local_endpoint_url = config.grading_local_url or config.local_endpoint_url
         except Exception as e:
             print(f"[GRADER] 读取教师配置失败: {e}")
 
+    # 自定义 Key 为空或 use_default=True → 使用系统默认
     if not api_key:
         from app.config import get_settings
-        settings = get_settings()
-        api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+        api_key = get_settings().AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
 
     # 第一步：独立 API 判断切题
     topic_match = "切题"

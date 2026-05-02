@@ -67,9 +67,9 @@ def _compress_if_needed(content_bytes: bytes) -> bytes:
 
 
 async def _parse_image_async(content_bytes: bytes, student_id: int = 0) -> str:
-    """v2.0: 异步 OCR —— 优先使用学生 OCRConfig，降级到系统配置"""
+    """v2.0: 异步 OCR —— 优先使用学生 OCRConfig"""
     settings = get_settings()
-    api_key = settings.AI_API_KEY or "08291980aa0d44928db4cf142733edc4.Q41wSJGtwIy2IYmc"
+    api_key = settings.AI_API_KEY or ""
     ocr_model = getattr(settings, 'AI_OCR_MODEL', None) or "glm-4.1v-thinking-flash"
     ocr_base_url = None
 

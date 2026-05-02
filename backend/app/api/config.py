@@ -111,26 +111,34 @@ async def update_grading_config(
         config = GradingConfig(user_id=user.id)
         db.add(config)
     # 评分模型
-    config.grading_provider = GradingProvider(req.grading_provider) if req.grading_provider in [p.value for p in GradingProvider] else GradingProvider.zhipu
-    config.grading_model_name = req.grading_model_name
-    if req.grading_api_key:
-        config.grading_api_key = req.grading_api_key
-    if req.grading_base_url is not None:
-        config.grading_base_url = req.grading_base_url
-    if req.grading_local_url is not None:
-        config.grading_local_url = req.grading_local_url
+    config.grading_use_default = req.grading_use_default
+    if not req.grading_use_default:
+        config.grading_provider = GradingProvider(req.grading_provider) if req.grading_provider in [p.value for p in GradingProvider] else GradingProvider.zhipu
+        config.provider = req.grading_provider
+        config.grading_model_name = req.grading_model_name
+        if req.grading_api_key:
+            config.grading_api_key = req.grading_api_key
+            config.api_key_encrypted = req.grading_api_key
+        if req.grading_base_url is not None:
+            config.grading_base_url = req.grading_base_url
+            config.base_url = req.grading_base_url
+        if req.grading_local_url is not None:
+            config.grading_local_url = req.grading_local_url
+            config.local_endpoint_url = req.grading_local_url
     # 能力分析模型
-    if req.ability_provider:
-        config.ability_provider = GradingProvider(req.ability_provider) if req.ability_provider in [p.value for p in GradingProvider] else None
-    else:
-        config.ability_provider = None
-    config.ability_model_name = req.ability_model_name
-    if req.ability_api_key:
-        config.ability_api_key = req.ability_api_key
-    if req.ability_base_url is not None:
-        config.ability_base_url = req.ability_base_url
-    if req.ability_local_url is not None:
-        config.ability_local_url = req.ability_local_url
+    config.ability_use_default = req.ability_use_default
+    if not req.ability_use_default:
+        if req.ability_provider:
+            config.ability_provider = GradingProvider(req.ability_provider) if req.ability_provider in [p.value for p in GradingProvider] else None
+        else:
+            config.ability_provider = None
+        config.ability_model_name = req.ability_model_name
+        if req.ability_api_key:
+            config.ability_api_key = req.ability_api_key
+        if req.ability_base_url is not None:
+            config.ability_base_url = req.ability_base_url
+        if req.ability_local_url is not None:
+            config.ability_local_url = req.ability_local_url
     await db.commit()
     await db.refresh(config)
     return GradingConfigResponse.model_validate(config)
@@ -148,16 +156,18 @@ async def test_grading_connection(
     config = result.scalar_one_or_none()
     if not config or not config.is_active:
         raise HTTPException(status_code=400, detail="请先配置评分模型")
-    if not config.grading_api_key:
+    # 向下兼容：新字段为空时回退到旧字段
+    api_key = config.grading_api_key or config.api_key_encrypted or ""
+    if not api_key:
         raise HTTPException(status_code=400, detail="请先配置评分模型 API Key")
 
     provider = config.grading_provider.value if isinstance(config.grading_provider, GradingProvider) else "zhipu"
     ok, msg = await test_connection(
         provider=provider,
-        api_key=config.grading_api_key or "",
+        api_key=api_key,
         model=config.grading_model_name,
-        base_url=config.grading_base_url,
-        local_endpoint_url=config.grading_local_url,
+        base_url=config.grading_base_url or config.base_url,
+        local_endpoint_url=config.grading_local_url or config.local_endpoint_url,
     )
     return {"success": ok, "message": msg}
 
