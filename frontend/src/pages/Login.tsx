@@ -42,7 +42,7 @@ export default function Login() {
           <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-[22px] flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-500/20">
             <BookOpen className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-[28px] font-bold text-apple-text tracking-tight">文鉴同行</h1>
+          <h1 className="text-[28px] font-bold text-apple-text tracking-tight">文鉴同行 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-600 align-top">v2.0</span></h1>
           <p className="text-apple-secondary mt-1.5 text-[15px]">深圳中考 AI 作文智能批改平台</p>
         </div>
         <div className="backdrop-blur-2xl bg-white/70 rounded-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)] p-8">
