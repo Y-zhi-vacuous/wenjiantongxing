@@ -1,49 +1,35 @@
 # Findings
 
-## v2.0 状态
-- v2.0 架构重构完成
-- 学生端: OCR 配置 + 作文提交 (不自动批改)
-- 教师端: 评分配置 + 单篇/批量批改 + 能力刷新
+## v2.1 状态
+- 深圳市官方四维评分标准 (15+15+10+5=45)
+- 审题判断修正: 看核心思想方向，非描写篇幅占比
 - 公网: `https://wppyqjhwlqso.usw-1.sealos.app`
 
-## 技术 v2.0
-React 18 + TS + Vite + Tailwind + Capacitor 8 | FastAPI + SQLAlchemy + SQLite
-评分: 统一 call_llm → 6 providers (Zhipu/OpenAI/DeepSeek/Claude/Ollama/vLLM)
-OCR: glm-4.1v-thinking-flash(disabled) → glm-4v (学生 OCRConfig)
+## 技术 v2.1
+React 18 + TS + Vite + Tailwind | FastAPI + SQLAlchemy + SQLite
+评分: call_llm → 6 providers | OCR: glm-4.1v-thinking-flash → glm-4v
 
-## v2.0 架构决策
-| 决策 | 理由 |
-|------|------|
-| 评分迁移教师端 | 教师控制评分质量，可选付费API或本地部署 |
-| 统一路由层 call_llm | 一种接口调用 6 个提供商 |
-| 串行逐篇批改 | 避免并发 API 限流 |
-| Prompt 独立模块 | 易于迭代优化 |
-| 能力分析含教学建议 | 教师可直接获得可执行的教学方案 |
+## 评分体系演进
 
-## 评分 (五维 45 分)
-| 立意(10) | 内容(15) | 语言(10) | 结构(5) | 文面(5) |
-切题硬限: 离题≤10 / 偏题≤29 | 字数: <100≤10 / 100-300≤29 / 300-500≤34
+| 版本 | 维度 | 说明 |
+|------|------|------|
+| v1.0 | 立意10+内容15+语言10+结构5+文面5 | 自拟等级表 |
+| v2.0 | 同上 + topic_match展示 | 增加切题判定展示 |
+| v2.1 | **内容15+语言15+结构10+文面5** | **深圳市官方标准，立意融入内容** |
 
-## v2.0 新特性
-- 幂等数据迁移 (AIConfig → OCRConfig + GradingConfig)
-- 切题检查 JSON 输出 (含 confidence + reasoning)
-- 能力分析新增: teaching_recommendations + error_patterns
+## 审题判断修正
 
-## OCR
-thinking:disabled + 3次重试(4/8/12s) + glm-4v降级 + >500KB压缩 + 学生OCRConfig
+| 旧判断 | 新判断 |
+|--------|--------|
+| "风景描写仅占开头和结尾" | "学生核心思想：自我成长 → 题目指向：对风景变化的观察与思考 → 偏题" |
+| 看描写篇幅占比 | **看核心思想方向是否契合题目** |
 
 ## 部署调试
+
 | 问题 | 解 |
 |------|-----|
-| 镜像标签大写 | 硬编码小写 |
-| GHCR 401 | Public |
-| SQLite连接 | 绝对路径+mkdir |
-| bcrypt | 4.0.1 |
-| Git push | SSH Key |
-| OCR event loop | 异步 await |
-| OCR 短输出 | thinking disabled |
-| OCR 限流 | 重试+降级 |
-| 评分超满分 | 后端 clamp |
-| 离题高分 | topic_match 硬限 |
-| 能力分析差 | AI报告驱动 |
-| v2.0 配置分离 | OCRConfig + GradingConfig + migration |
+| OCR 6轮不工作 | thinking:disabled + 重试 + 降级 |
+| AI 给离题作文高分 | 两步法 + 后端硬限 |
+| 能力分析千篇一律 | AI 驱动替代模板 |
+| 镜像缓存不更新 | SHA 唯一标签 |
+| 切题判定不展示 | topic_match/level/deduction 存入报告 |
